@@ -1,0 +1,619 @@
+{
+  "$id": "ability-helpers-attribute-schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "AttributeEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
+    "AttributeInAssumption": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
+    "AttributeRef": {
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref"
+      ],
+      "type": "object"
+    },
+    "Attributes": {
+      "patternProperties": {
+        "^\\$[A-Za-z_][A-Za-z0-9_]+$": {
+          "anyOf": [
+            {
+              "$ref": "ability-helpers-attribute-schema#/definitions/AttributeEntry"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "one": {
+                  "items": {
+                    "$ref": "ability-helpers-attribute-schema#/definitions/AttributeEntry"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "one"
+              ],
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Class": {
+      "additionalProperties": false,
+      "properties": {
+        "assumptions": {
+          "items": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "attributes": {
+                    "items": {
+                      "$ref": "#/definitions/AttributeInAssumption"
+                    },
+                    "type": "array"
+                  },
+                  "tag": {
+                    "type": "string",
+                    "pattern": "^\\s*\\<\\s*[a-z][a-z0-9_-]*\\s*\\>\\s*$"
+
+                  }
+                },
+                "required": [
+                  "attributes",
+                  "tag"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "tag": {
+                    "type": "string",
+                    "pattern": "^\\s*\\<\\s*[a-z][a-z0-9_-]*\\s*\\>\\s*$"
+                  }
+                },
+                "required": [
+                  "tag"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "attributes": {
+                    "items": {
+                      "$ref": "#/definitions/AttributeInAssumption"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "attributes"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "type": "array"
+        },
+        "constraints": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "one": {
+                    "items": {
+                      "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "one"
+                ],
+                "type": "object"
+              },
+              {
+                "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintRef"
+              }
+            ]
+          },
+          "type": "array"
+        },
+        "parameters": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "ability-helpers-attribute-schema#/definitions/ParameterInClassEntry"
+              },
+              {
+                "$ref": "ability-helpers-attribute-schema#/definitions/ParameterRef"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "one": {
+                    "items": {
+                      "$ref": "ability-helpers-attribute-schema#/definitions/ParameterEntry"
+                    },
+                    "type": "array"
+                  },
+                  "optional": {
+                    "anyOf": [
+                      {
+                        "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "one": {
+                            "items": {
+                              "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+                            },
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "one"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintRef"
+                      },
+                      {
+                        "type": "boolean"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "one"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "type": "array"
+        },
+        "tags": {
+          "type": "object",
+          "patternProperties": {
+            "^\\s*\\<\\s*[a-z][a-z0-9_-]*\\s*\\>\\s*(,\\s*\\<\\s*[a-z][a-z0-9_-]*\\s*\\>\\s*)*$": {
+              "$ref": "ability-helpers-attribute-schema#/definitions/Tag"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "tags"
+      ],
+      "type": "object"
+    },
+    "Classes": {
+      "type": "object",
+      "patternProperties": {
+        "^[A-Za-z_][A-Za-z0-9_]*$": {
+          "$ref": "ability-helpers-attribute-schema#/definitions/Class"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ConstraintEntry": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "description": {
+              "type": "string"
+            },
+            "xpath": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "description",
+            "xpath"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "description": {
+              "type": "string"
+            },
+            "js": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "description",
+            "js"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ConstraintRef": {
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref"
+      ],
+      "type": "object"
+    },
+    "Constraints": {
+      "patternProperties": {
+        "^\\$[A-Za-z_][A-Za-z0-9_]+$": {
+          "anyOf": [
+            {
+              "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "one": {
+                  "items": {
+                    "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "one"
+              ],
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "ParameterEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "attribute": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
+        },
+        "constraints": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "one": {
+                    "items": {
+                      "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "one"
+                ],
+                "type": "object"
+              },
+              {
+                "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintRef"
+              }
+            ]
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "value": {
+          "items": {
+            "$ref": "ability-helpers-attribute-schema#/definitions/ParameterValue"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "attribute",
+        "name"
+      ],
+      "type": "object"
+    },
+    "ParameterInClassEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "attribute": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "optional": {
+          "anyOf": [
+            {
+              "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "one": {
+                  "items": {
+                    "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "one"
+              ],
+              "type": "object"
+            },
+            {
+              "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintRef"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        },
+        "type": {
+          "type": "string"
+        },
+        "value": {
+          "items": {
+            "$ref": "ability-helpers-attribute-schema#/definitions/ParameterValue"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "attribute",
+        "name"
+      ],
+      "type": "object"
+    },
+    "ParameterRef": {
+      "additionalProperties": false,
+      "properties": {
+        "optional": {
+          "anyOf": [
+            {
+              "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "one": {
+                  "items": {
+                    "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "one"
+              ],
+              "type": "object"
+            },
+            {
+              "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintRef"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        },
+        "ref": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref"
+      ],
+      "type": "object"
+    },
+    "ParameterValue": {
+      "additionalProperties": false,
+      "properties": {
+        "attribute": {
+          "type": "string"
+        },
+        "parameter": {
+          "type": [
+            "null",
+            "string",
+            "number",
+            "boolean"
+          ]
+        }
+      },
+      "required": [
+        "attribute",
+        "parameter"
+      ],
+      "type": "object"
+    },
+    "Parameters": {
+      "patternProperties": {
+        "^\\$[A-Za-z_][A-Za-z0-9_]+$": {
+          "anyOf": [
+            {
+              "$ref": "ability-helpers-attribute-schema#/definitions/ParameterEntry"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "one": {
+                  "items": {
+                    "$ref": "ability-helpers-attribute-schema#/definitions/ParameterEntry"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "one"
+              ],
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Tag": {
+      "additionalProperties": false,
+      "properties": {
+        "attributes": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "ability-helpers-attribute-schema#/definitions/AttributeEntry"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "one": {
+                    "items": {
+                      "$ref": "ability-helpers-attribute-schema#/definitions/AttributeEntry"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "one"
+                ],
+                "type": "object"
+              },
+              {
+                "$ref": "ability-helpers-attribute-schema#/definitions/AttributeRef"
+              }
+            ]
+          },
+          "type": "array"
+        },
+        "constraints": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "one": {
+                    "items": {
+                      "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "one"
+                ],
+                "type": "object"
+              },
+              {
+                "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintRef"
+              }
+            ]
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "properties": {
+    "attributes": {
+      "$ref": "ability-helpers-attribute-schema#/definitions/Attributes"
+    },
+    "classes": {
+      "$ref": "ability-helpers-attribute-schema#/definitions/Classes"
+    },
+    "constraints": {
+      "$ref": "ability-helpers-attribute-schema#/definitions/Constraints"
+    },
+    "namespace": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
+    },
+    "parameters": {
+      "$ref": "ability-helpers-attribute-schema#/definitions/Parameters"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^1\\.0$"
+    }
+  },
+  "required": [
+    "classes",
+    "version"
+  ],
+  "type": "object"
+}
