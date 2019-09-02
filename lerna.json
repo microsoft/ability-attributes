@@ -1,0 +1,5 @@
+{
+    "packages": ["base", "generator", "react"],
+    "version": "0.0.0",
+    "npmClient": "npm"
+}
