@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "build": "lerna bootstrap",
+    "build": "lerna bootstrap --no-ci",
     "clean": "lerna exec -- npm run clean && lerna clean --yes"
   },
   "devDependencies": {
