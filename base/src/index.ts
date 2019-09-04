@@ -6,6 +6,7 @@
 import {
     AttributeSchema,
     AttributeToParameter,
+    ClassAssumption,
     Constraint,
     ConstraintEntry,
     ConstraintRef,
@@ -28,6 +29,7 @@ export {
     AttributeSchemaClass,
     AssumptionSpecificity,
     AttributeToParameter,
+    ClassAssumption,
     Constraint,
     ConstraintEntry,
     ConstraintRef,

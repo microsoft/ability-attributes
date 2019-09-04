@@ -1,0 +1,39 @@
+{
+  "name": "ability-attributes-demo",
+  "private": true,
+  "version": "0.0.0",
+  "description": "A demo React project for the accessibility attributes schema",
+  "author": "Marat Abdullin <marata@microsoft.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/microsoft/ability-attributes"
+  },
+  "scripts": {
+    "build": "npm run clean && npm run tslint && npm run schema && webpack --mode development",
+    "clean": "rimraf dist ./src/schema.ts",
+    "tslint": "tslint --project tsconfig.json -r tslint.json -r tslint-microsoft-contrib --fix || true",
+    "schema": "allyschema -c __DEV__ schema.json > ./src/schema.ts",
+    "prepare": "npm run build"
+  },
+  "devDependencies": {
+    "ability-attributes-generator": "^0.0.1",
+    "awesome-typescript-loader": "^3.4.1",
+    "rimraf": "^2.7.1",
+    "source-map-loader": "^0.2.4",
+    "tslint": "^5.12.0",
+    "tslint-microsoft-contrib": "^6.0.0",
+    "tsutils": "^2.28.0",
+    "typescript": "^3.3.4000",
+    "webpack": "^4.21.0",
+    "webpack-cli": "3.1.2"
+  },
+  "dependencies": {
+    "@types/react": "^16.8.7",
+    "@types/react-dom": "^16.0.11",
+    "ability-attributes": "^0.0.1",
+    "ability-attributes-react": "^0.0.1",
+    "react": "^16.8.6",
+    "react-dom": "^16.8.6"
+  }
+}

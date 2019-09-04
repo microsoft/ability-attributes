@@ -4,22 +4,25 @@
  */
 
 import { DevEnv, isAccessibleElement } from 'ability-attributes';
-import { createElement as reactCreateElement } from 'react';
+import * as React from 'react';
 
 import { Accessibility } from './ReactProp';
 
+let _doneSetup = false;
 let _enforceClasses = true;
 let _enforceRoleNone = true;
 let _showRenderErrors = true;
-const _origCreateElement = reactCreateElement;
+const _origCreateElement = React.createElement;
 
 export interface Settings {
     enforceClasses?: boolean; // true by default.
     enforceRoleNone?: boolean; // true by default.
     showRenderErrors?: boolean; // true by default.
+    patchCreateElement?: boolean; // true by default.
+    window?: Window;
 }
 
-const createElement: typeof reactCreateElement = function createElement(this: any, type: any, props?: any): any {
+const createElement: typeof React.createElement = function createElement(this: any, type: any, props?: any): any {
     if (typeof type === 'string') {
         if (props && (props as any).$accessibility) {
             let { $accessibility, ...modifiedProps }: { $accessibility: Accessibility<any>, [key: string]: any } = props as any;
@@ -52,7 +55,8 @@ const createElement: typeof reactCreateElement = function createElement(this: an
                     }
                 }
             } else if (__DEV__ && _showRenderErrors) {
-                const msg = 'Invalid $accessibility attribute value, use $A or $AA functions.';
+                const msg = 'Invalid $accessibility attribute value, use `provideAccessibilityClass` or ' +
+                    '`provideAccessibilityClassAndProps` functions.';
 
                 modifiedProps[DevEnv.ATTRIBUTE_NAME_ERROR_ID] = DevEnv.reportError(window, msg, null, true) || '-1';
                 modifiedProps[DevEnv.ATTRIBUTE_NAME_ERROR_MESSAGE] = msg;
@@ -113,8 +117,16 @@ function patchTabIndex(props: any, unpatch: boolean): void {
 
 export { createElement };
 
-export function setup(win: Window, settings?: Settings) {
+export function setup(settings?: Settings) {
+    if (_doneSetup) {
+        return;
+    }
+
+    _doneSetup = true;
+
     if (__DEV__) {
+        const win = (settings && settings.window) || window;
+
         DevEnv.setup(win, settings ? settings.enforceClasses !== false : true);
 
         if (settings) {
@@ -123,4 +135,17 @@ export function setup(win: Window, settings?: Settings) {
             _showRenderErrors = settings.showRenderErrors !== false;
         }
     }
+
+    const patchCreateElement = !(settings && (settings.patchCreateElement === false));
+
+    if (patchCreateElement) {
+        // The proper way would likely be to specify createElement in tsconfig.json as jsxFactory,
+        // but TypeScript doesn't yet support <> syntax for the fragments when jsxFactory
+        // is used, monkey-patching React.createElement is a temporary workaround.
+        monkeyPatch(React);
+    }
+}
+
+function monkeyPatch(r: any) {
+    r.createElement = createElement;
 }

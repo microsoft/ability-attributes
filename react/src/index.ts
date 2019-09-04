@@ -6,11 +6,11 @@
 import 'react';
 
 import { createElement, setup } from './CreateElement';
-import { $A, $AA, Accessibility, AttributeSchemaClass } from './ReactProp';
+import { Accessibility, AttributeSchemaClass, provideAccessibilityClass, provideAccessibilityClassAndProps } from './ReactProp';
 
 export {
-    $A,
-    $AA,
+    provideAccessibilityClass,
+    provideAccessibilityClassAndProps,
     setup,
     createElement,
     Accessibility,

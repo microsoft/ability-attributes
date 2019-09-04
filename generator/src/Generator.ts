@@ -9,6 +9,7 @@ import * as path from 'path';
 
 import {
     AttributeToParameter,
+    ClassAssumption,
     Constraint,
     ConstraintEntry,
     ConstraintRef,
@@ -66,20 +67,6 @@ interface Tag {
     constraints?: (Constraint | ConstraintRef)[];
     attributes?: (Attribute | AttributeRef)[];
 }
-
-interface AttributeInAssumption {
-    name: string;
-    value: string;
-}
-
-type ClassAssumption = {
-    tag: string;
-    attributes: AttributeInAssumption[];
-} | {
-    tag: string;
-} | {
-    attributes: AttributeInAssumption[];
-};
 
 interface Class {
     assumptions?: ClassAssumption[];
@@ -160,6 +147,7 @@ export class CodeGenerator {
 import {
     AssumptionSpecificity,
     AttributeSchema,
+    ClassAssumption,
     Constraint,
     DevEnv,
     HTMLElementAttributes,
@@ -202,7 +190,7 @@ ${
 
                 if ('tag' in a) {
                     tagName = a.tag.trim();
-                    tagName = tagName.substring(1, tagName.length - 1).trim();
+                    tagName = tagName && tagName.substring(1, tagName.length - 1).trim();
 
                     assumption = 'attributes' in a ? { tag: tagName, attributes: a.attributes } : { tag: tagName };
                 } else {
@@ -622,13 +610,13 @@ export class ${ className } extends AttributeSchema<${ className }_Params> {
     private _generateAssume(className: string, assumptions: ClassAssumption[]): string {
         return `if (${ this._devCondition }) {
     ${ className }.assume = function(tagName: string, attributes: HTMLElementAttributes): AssumptionSpecificity | undefined {
-        const assumptions = ${ this._stringify(assumptions, 8) };
+        const assumptions: ClassAssumption[] = ${ this._stringify(assumptions, 8) };
 
         for (let a of assumptions) {
             let tagMatch = false;
             let attributeMatch = 0;
 
-            if (a.tag) {
+            if ('tag' in a) {
                 if (a.tag !== tagName) {
                     continue;
                 }
@@ -636,7 +624,7 @@ export class ${ className } extends AttributeSchema<${ className }_Params> {
                 tagMatch = true;
             }
 
-            if (a.attributes) {
+            if ('attributes' in a) {
                 for (let attr of a.attributes) {
                     if (!(attr.name in attributes) || (attributes[attr.name] !== attr.value)) {
                         attributeMatch = 0;

@@ -82,6 +82,20 @@ export type ParamConstraint = (ConstraintEntry | { one: ConstraintEntry[] }) & {
     value?: string | number | boolean | null;
 };
 
+export interface AttributeInAssumption {
+    name: string;
+    value: string;
+}
+
+export type ClassAssumption = {
+    tag: string;
+    attributes: AttributeInAssumption[];
+} | {
+    tag: string;
+} | {
+    attributes: AttributeInAssumption[];
+};
+
 export abstract class AttributeSchema<P extends { [name: string]: any }> {
     protected abstract _className: string;
     protected abstract _allParams: Parameters;

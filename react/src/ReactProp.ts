@@ -9,11 +9,11 @@ export type AttributeSchemaClass<P> = new(tagName: string, props: P) => Attribut
 
 export class Accessibility<P> {
     private constructor(public readonly Class: AttributeSchemaClass<P>, public readonly props?: P) {
-        // Making the constructor private and doing a hack in $A function to instantiate
-        // this object.
+        // Making the constructor private and doing a hack in provideAccessibilityClass()
+        // function to instantiate this object.
         // For two reasons: proper type inference, future attempt to make a compile-time
-        // transformation of the $A() call in order to validate the props and remove the
-        // runtime overhead.
+        // transformation of the provideAccessibilityClass() call in order to validate
+        // the props and remove the runtime overhead.
     }
 
     protected static _create<P>(Class: AttributeSchemaClass<P>, props?: P): Accessibility<P> {
@@ -21,10 +21,10 @@ export class Accessibility<P> {
     }
 }
 
-export function $A<P>(Class: AttributeSchemaClass<P>, props: P): Accessibility<P> {
+export function provideAccessibilityClassAndProps<P>(Class: AttributeSchemaClass<P>, props: P): Accessibility<P> {
     return (Accessibility as any)._create(Class, props);
 }
 
-export function $AA<P>(Class: AttributeSchemaClass<P>): Accessibility<P> {
+export function provideAccessibilityClass<P>(Class: AttributeSchemaClass<P>): Accessibility<P> {
     return (Accessibility as any)._create(Class);
 }
