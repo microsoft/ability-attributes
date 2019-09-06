@@ -5,7 +5,7 @@
   "author": "Marat Abdullin <marata@microsoft.com>",
   "license": "MIT",
   "main": "./dist/index.js",
-  "module": "./dist/ability-helpers-attributes.esm.js",
+  "module": "./dist/ability-attributes.esm.js",
   "typings": "./dist/index.d.ts",
   "files": [
     "dist"

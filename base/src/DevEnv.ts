@@ -3,37 +3,41 @@
  * Licensed under the MIT License.
  */
 
-import { AssumptionSpecificity, AttributeSchemaClass, DevEnv, WindowWithClassMap, WindowWithDevEnv } from './DevEnvTypes';
+import { AssumptionSpecificity, AttributeSchemaClass, DevEnv, DevEnvSettings, WindowWithClassMap, WindowWithDevEnv } from './DevEnvTypes';
 import { createElements, reportError as reportErrorBase } from './ErrorReporter';
 import { HTMLElementAttributes } from './HTML';
 import { setup as setupValidator } from './Validator';
 
 export * from './DevEnvTypes';
 
-export function setup(win: Window, enforceClasses: boolean): void {
+export function setup(settings?: DevEnvSettings): void {
     if (!__DEV__) {
         return;
     }
 
-    const w = win as WindowWithDevEnv;
+    const w = ((settings && settings.window) || (typeof window !== 'undefined' ? window : undefined)) as WindowWithDevEnv;
 
-    if (!w.__abilityHelpersDev) {
+    if (!w) {
+        return;
+    }
+
+    if (!w.__abilityAttributesDev) {
         const els = createElements();
 
         if (els) {
-            w.__abilityHelpersDev = {
+            w.__abilityAttributesDev = {
                 errorStyle: els.style,
                 errorContainer: els.container,
                 reportError: (message: string | null, element: HTMLElement | null, isRender: boolean): string | null => {
-                    const env = getDevEnv(win);
+                    const env = getDevEnv(w);
 
                     if (env) {
-                        if (env.errorStyle.parentNode !== win.document.body) {
-                            win.document.body.appendChild(env.errorStyle);
+                        if (env.errorStyle.parentNode !== w.document.body) {
+                            w.document.body.appendChild(env.errorStyle);
                         }
 
-                        if (env.errorContainer.parentNode !== win.document.body) {
-                            win.document.body.appendChild(env.errorContainer);
+                        if (env.errorContainer.parentNode !== w.document.body) {
+                            w.document.body.appendChild(env.errorContainer);
                         }
 
                         return reportErrorBase(env, message, element, isRender);
@@ -44,13 +48,23 @@ export function setup(win: Window, enforceClasses: boolean): void {
                 lastErrorId: 0
             };
 
-            setupValidator(win, w.__abilityHelpersDev.reportError, getClassByName, enforceClasses, assumeClass);
+            const enforceClasses = (settings && settings.enforceClasses) !== false;
+            const ignoreUnknownClasses = !!(settings && settings.ignoreUnknownClasses);
+
+            setupValidator(
+                w,
+                w.__abilityAttributesDev.reportError,
+                getClassByName,
+                enforceClasses,
+                assumeClass,
+                ignoreUnknownClasses
+            );
         }
     }
 }
 
 export function getDevEnv(win: Window): DevEnv | undefined {
-    return (win as WindowWithDevEnv).__abilityHelpersDev;
+    return (win as WindowWithDevEnv).__abilityAttributesDev;
 }
 
 export function reportError(win: Window, message: string | null, element: HTMLElement | null, isRender: boolean): string | null {
@@ -67,14 +81,14 @@ export function addClass(name: string, Class: AttributeSchemaClass) {
     if (__DEV__ && (typeof window !== 'undefined')) {
         const win = window as WindowWithClassMap;
 
-        if (!win.__abilityHelpersDevClassMap) {
-            win.__abilityHelpersDevClassMap = {};
+        if (!win.__abilityAttributesDevClassMap) {
+            win.__abilityAttributesDevClassMap = {};
         }
 
-        if (win.__abilityHelpersDevClassMap[name]) {
+        if (win.__abilityAttributesDevClassMap[name]) {
             console.error(`Duplicate class '${ name }'`);
         } else {
-            win.__abilityHelpersDevClassMap[name] = Class;
+            win.__abilityAttributesDevClassMap[name] = Class;
         }
     }
 }
@@ -83,7 +97,7 @@ export function getClassByName(name: string): AttributeSchemaClass | undefined {
     if (__DEV__ && (typeof window !== 'undefined')) {
         const win = window as WindowWithClassMap;
 
-        return win.__abilityHelpersDevClassMap ? win.__abilityHelpersDevClassMap[name] : undefined;
+        return win.__abilityAttributesDevClassMap ? win.__abilityAttributesDevClassMap[name] : undefined;
     }
 
     return undefined;
@@ -99,7 +113,7 @@ export function assumeClass(tagName: string, attributes: HTMLElementAttributes, 
 
     if (__DEV__ && (typeof window !== 'undefined')) {
         const win = window as WindowWithClassMap;
-        const classes = win.__abilityHelpersDevClassMap;
+        const classes = win.__abilityAttributesDevClassMap;
 
         if (classes) {
             const assumed: AssumedClass[] = [];

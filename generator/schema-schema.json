@@ -1,5 +1,5 @@
 {
-  "$id": "ability-helpers-attribute-schema",
+  "$id": "ability-attributes-schema",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "definitions": {
@@ -64,14 +64,14 @@
         "^\\$[A-Za-z_][A-Za-z0-9_]+$": {
           "anyOf": [
             {
-              "$ref": "ability-helpers-attribute-schema#/definitions/AttributeEntry"
+              "$ref": "ability-attributes-schema#/definitions/AttributeEntry"
             },
             {
               "additionalProperties": false,
               "properties": {
                 "one": {
                   "items": {
-                    "$ref": "ability-helpers-attribute-schema#/definitions/AttributeEntry"
+                    "$ref": "ability-attributes-schema#/definitions/AttributeEntry"
                   },
                   "type": "array"
                 }
@@ -150,14 +150,14 @@
           "items": {
             "anyOf": [
               {
-                "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+                "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
               },
               {
                 "additionalProperties": false,
                 "properties": {
                   "one": {
                     "items": {
-                      "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+                      "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
                     },
                     "type": "array"
                   }
@@ -168,7 +168,7 @@
                 "type": "object"
               },
               {
-                "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintRef"
+                "$ref": "ability-attributes-schema#/definitions/ConstraintRef"
               }
             ]
           },
@@ -178,31 +178,31 @@
           "items": {
             "anyOf": [
               {
-                "$ref": "ability-helpers-attribute-schema#/definitions/ParameterInClassEntry"
+                "$ref": "ability-attributes-schema#/definitions/ParameterInClassEntry"
               },
               {
-                "$ref": "ability-helpers-attribute-schema#/definitions/ParameterRef"
+                "$ref": "ability-attributes-schema#/definitions/ParameterRef"
               },
               {
                 "additionalProperties": false,
                 "properties": {
                   "one": {
                     "items": {
-                      "$ref": "ability-helpers-attribute-schema#/definitions/ParameterEntry"
+                      "$ref": "ability-attributes-schema#/definitions/ParameterEntry"
                     },
                     "type": "array"
                   },
                   "optional": {
                     "anyOf": [
                       {
-                        "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+                        "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
                       },
                       {
                         "additionalProperties": false,
                         "properties": {
                           "one": {
                             "items": {
-                              "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+                              "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
                             },
                             "type": "array"
                           }
@@ -213,7 +213,7 @@
                         "type": "object"
                       },
                       {
-                        "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintRef"
+                        "$ref": "ability-attributes-schema#/definitions/ConstraintRef"
                       },
                       {
                         "type": "boolean"
@@ -234,7 +234,7 @@
           "type": "object",
           "patternProperties": {
             "^\\s*\\<\\s*[a-z][a-z0-9_-]*\\s*\\>\\s*(,\\s*\\<\\s*[a-z][a-z0-9_-]*\\s*\\>\\s*)*$": {
-              "$ref": "ability-helpers-attribute-schema#/definitions/Tag"
+              "$ref": "ability-attributes-schema#/definitions/Tag"
             }
           },
           "additionalProperties": false
@@ -249,7 +249,7 @@
       "type": "object",
       "patternProperties": {
         "^[A-Za-z_][A-Za-z0-9_]*$": {
-          "$ref": "ability-helpers-attribute-schema#/definitions/Class"
+          "$ref": "ability-attributes-schema#/definitions/Class"
         }
       },
       "additionalProperties": false
@@ -307,14 +307,14 @@
         "^\\$[A-Za-z_][A-Za-z0-9_]+$": {
           "anyOf": [
             {
-              "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+              "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
             },
             {
               "additionalProperties": false,
               "properties": {
                 "one": {
                   "items": {
-                    "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+                    "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
                   },
                   "type": "array"
                 }
@@ -341,14 +341,14 @@
           "items": {
             "anyOf": [
               {
-                "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+                "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
               },
               {
                 "additionalProperties": false,
                 "properties": {
                   "one": {
                     "items": {
-                      "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+                      "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
                     },
                     "type": "array"
                   }
@@ -359,7 +359,7 @@
                 "type": "object"
               },
               {
-                "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintRef"
+                "$ref": "ability-attributes-schema#/definitions/ConstraintRef"
               }
             ]
           },
@@ -371,7 +371,7 @@
         },
         "value": {
           "items": {
-            "$ref": "ability-helpers-attribute-schema#/definitions/ParameterValue"
+            "$ref": "ability-attributes-schema#/definitions/ParameterValue"
           },
           "type": "array"
         }
@@ -396,14 +396,14 @@
         "optional": {
           "anyOf": [
             {
-              "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+              "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
             },
             {
               "additionalProperties": false,
               "properties": {
                 "one": {
                   "items": {
-                    "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+                    "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
                   },
                   "type": "array"
                 }
@@ -414,7 +414,7 @@
               "type": "object"
             },
             {
-              "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintRef"
+              "$ref": "ability-attributes-schema#/definitions/ConstraintRef"
             },
             {
               "type": "boolean"
@@ -426,7 +426,7 @@
         },
         "value": {
           "items": {
-            "$ref": "ability-helpers-attribute-schema#/definitions/ParameterValue"
+            "$ref": "ability-attributes-schema#/definitions/ParameterValue"
           },
           "type": "array"
         }
@@ -443,14 +443,14 @@
         "optional": {
           "anyOf": [
             {
-              "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+              "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
             },
             {
               "additionalProperties": false,
               "properties": {
                 "one": {
                   "items": {
-                    "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+                    "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
                   },
                   "type": "array"
                 }
@@ -461,7 +461,7 @@
               "type": "object"
             },
             {
-              "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintRef"
+              "$ref": "ability-attributes-schema#/definitions/ConstraintRef"
             },
             {
               "type": "boolean"
@@ -503,14 +503,14 @@
         "^\\$[A-Za-z_][A-Za-z0-9_]+$": {
           "anyOf": [
             {
-              "$ref": "ability-helpers-attribute-schema#/definitions/ParameterEntry"
+              "$ref": "ability-attributes-schema#/definitions/ParameterEntry"
             },
             {
               "additionalProperties": false,
               "properties": {
                 "one": {
                   "items": {
-                    "$ref": "ability-helpers-attribute-schema#/definitions/ParameterEntry"
+                    "$ref": "ability-attributes-schema#/definitions/ParameterEntry"
                   },
                   "type": "array"
                 }
@@ -533,14 +533,14 @@
           "items": {
             "anyOf": [
               {
-                "$ref": "ability-helpers-attribute-schema#/definitions/AttributeEntry"
+                "$ref": "ability-attributes-schema#/definitions/AttributeEntry"
               },
               {
                 "additionalProperties": false,
                 "properties": {
                   "one": {
                     "items": {
-                      "$ref": "ability-helpers-attribute-schema#/definitions/AttributeEntry"
+                      "$ref": "ability-attributes-schema#/definitions/AttributeEntry"
                     },
                     "type": "array"
                   }
@@ -551,7 +551,7 @@
                 "type": "object"
               },
               {
-                "$ref": "ability-helpers-attribute-schema#/definitions/AttributeRef"
+                "$ref": "ability-attributes-schema#/definitions/AttributeRef"
               }
             ]
           },
@@ -561,14 +561,14 @@
           "items": {
             "anyOf": [
               {
-                "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+                "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
               },
               {
                 "additionalProperties": false,
                 "properties": {
                   "one": {
                     "items": {
-                      "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintEntry"
+                      "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
                     },
                     "type": "array"
                   }
@@ -579,7 +579,7 @@
                 "type": "object"
               },
               {
-                "$ref": "ability-helpers-attribute-schema#/definitions/ConstraintRef"
+                "$ref": "ability-attributes-schema#/definitions/ConstraintRef"
               }
             ]
           },
@@ -591,20 +591,20 @@
   },
   "properties": {
     "attributes": {
-      "$ref": "ability-helpers-attribute-schema#/definitions/Attributes"
+      "$ref": "ability-attributes-schema#/definitions/Attributes"
     },
     "classes": {
-      "$ref": "ability-helpers-attribute-schema#/definitions/Classes"
+      "$ref": "ability-attributes-schema#/definitions/Classes"
     },
     "constraints": {
-      "$ref": "ability-helpers-attribute-schema#/definitions/Constraints"
+      "$ref": "ability-attributes-schema#/definitions/Constraints"
     },
     "namespace": {
       "type": "string",
       "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
     },
     "parameters": {
-      "$ref": "ability-helpers-attribute-schema#/definitions/Parameters"
+      "$ref": "ability-attributes-schema#/definitions/Parameters"
     },
     "version": {
       "type": "string",

@@ -7,37 +7,24 @@ import Ajv = require('ajv');
 import * as fs from 'fs';
 import * as path from 'path';
 
-import {
-    AttributeToParameter,
-    ClassAssumption,
-    Constraint,
-    ConstraintEntry,
-    ConstraintRef,
-    MandatoryParameters,
-    NonParameterAttribute,
-    NonParameterAttributes,
-    ParameterEntry,
-    Parameters as ResolvedParams,
-    TagConstraints,
-    VariantsInClass
-} from 'ability-attributes';
+import { Schema } from 'ability-attributes';
 
-interface ParameterInClassEntry extends ParameterEntry {
-    optional?: boolean | Constraint | ConstraintRef;
+interface ParameterInClassEntry extends Schema.ParameterEntry {
+    optional?: boolean | Schema.Constraint | Schema.ConstraintRef;
 }
 
-type Parameter = ParameterEntry | { one: ParameterEntry[]; };
+type Parameter = Schema.ParameterEntry | { one: Schema.ParameterEntry[]; };
 
 interface ParameterRef {
     ref: string;
-    optional?: boolean | Constraint | ConstraintRef;
+    optional?: boolean | Schema.Constraint | Schema.ConstraintRef;
 }
 
 type ParameterInClass =
     ParameterInClassEntry |
     {
-        one: ParameterEntry[];
-        optional?: boolean | Constraint | ConstraintRef;
+        one: Schema.ParameterEntry[];
+        optional?: boolean | Schema.Constraint | Schema.ConstraintRef;
     };
 
 interface Parameters {
@@ -60,17 +47,17 @@ interface AttributeRef {
 }
 
 interface Constraints {
-    [key: string]: Constraint;
+    [key: string]: Schema.Constraint;
 }
 
 interface Tag {
-    constraints?: (Constraint | ConstraintRef)[];
+    constraints?: (Schema.Constraint | Schema.ConstraintRef)[];
     attributes?: (Attribute | AttributeRef)[];
 }
 
 interface Class {
-    assumptions?: ClassAssumption[];
-    constraints?: (Constraint | ConstraintRef)[];
+    assumptions?: Schema.ClassAssumption[];
+    constraints?: (Schema.Constraint | Schema.ConstraintRef)[];
     parameters?: (ParameterInClass | ParameterRef)[];
     tags: { [tag: string]: Tag };
 }
@@ -145,14 +132,9 @@ export class CodeGenerator {
         code.push(`/* tslint:disable */
 /* !!! THIS FILE IS GENERATED, DO NOT EDIT !!! */
 import {
-    AssumptionSpecificity,
-    AttributeSchema,
-    ClassAssumption,
-    Constraint,
     DevEnv,
     HTMLElementAttributes,
-    ParamConstraint,
-    TagConstraints
+    Schema
 } from 'ability-attributes';`);
 
         for (let className of Object.keys(this._schema.classes)) {
@@ -174,19 +156,19 @@ ${
     }
 
     private _generateClass(className: string, cls: Class): string {
-        const assumptions: ClassAssumption[] = [];
-        const classConstraints: Constraint[] = [];
-        const tagConstraints: TagConstraints = {};
-        const paramOptionalConstraints: TagConstraints = {};
-        const paramConstraints: TagConstraints = {};
+        const assumptions: Schema.ClassAssumption[] = [];
+        const classConstraints: Schema.Constraint[] = [];
+        const tagConstraints: Schema.TagConstraints = {};
+        const paramOptionalConstraints: Schema.TagConstraints = {};
+        const paramConstraints: Schema.TagConstraints = {};
         const params: ParameterInClass[] = [];
-        const nonParamAttrs: NonParameterAttributes = {};
+        const nonParamAttrs: Schema.NonParameterAttributes = {};
         let lastClass = 0;
 
         if (cls.assumptions) {
             for (let a of cls.assumptions) {
                 let tagName: string | undefined;
-                let assumption: ClassAssumption;
+                let assumption: Schema.ClassAssumption;
 
                 if ('tag' in a) {
                     tagName = a.tag.trim();
@@ -239,7 +221,7 @@ ${
             }
 
             const tmp = cls.tags[tag];
-            const tagAttrs: NonParameterAttribute = {};
+            const tagAttrs: Schema.NonParameterAttribute = {};
 
             if (tmp.attributes) {
                 for (let a of tmp.attributes)  {
@@ -268,7 +250,7 @@ ${
                 }
             }
 
-            const thisTagConstraints: Constraint[] = [];
+            const thisTagConstraints: Schema.Constraint[] = [];
 
             if (tmp.constraints) {
                 for (let c of tmp.constraints) {
@@ -289,10 +271,10 @@ ${
             }
         }
 
-        const allParams: ResolvedParams = {};
-        const attrToParam: AttributeToParameter = {};
-        const mandatoryParams: MandatoryParameters = {};
-        const variantsInClass: VariantsInClass = {};
+        const allParams: Schema.Parameters = {};
+        const attrToParam: Schema.AttributeToParameter = {};
+        const mandatoryParams: Schema.MandatoryParameters = {};
+        const variantsInClass: Schema.VariantsInClass = {};
 
         for (let p of params) {
             let paramNames: string[] = [];
@@ -347,7 +329,7 @@ ${
             if (!p.optional) {
                 mandatoryParams[paramClass] = paramNames;
             } else if (typeof p.optional !== 'boolean') {
-                paramOptionalConstraints[paramNames.join(', ')] = [p.optional as ConstraintEntry];
+                paramOptionalConstraints[paramNames.join(', ')] = [p.optional as Schema.ConstraintEntry];
             }
         }
 
@@ -372,7 +354,7 @@ ${
 
         return code.join('\n');
 
-        function addTagAttribute(tagAttrs: NonParameterAttribute, attrClass: string, attr: AttributeEntry) {
+        function addTagAttribute(tagAttrs: Schema.NonParameterAttribute, attrClass: string, attr: AttributeEntry) {
             if (tagAttrs[attr.name]) {
                 throw new Error(`Duplicate attribute '${ attr.name }' in class '${ className }'`);
             }
@@ -404,7 +386,7 @@ ${
         }
     }
 
-    private _resolveConstraint(className: string, constraint: Constraint | ConstraintRef): Constraint {
+    private _resolveConstraint(className: string, constraint: Schema.Constraint | Schema.ConstraintRef): Schema.Constraint {
         if ('ref' in constraint) {
             const ref = this._constraints[constraint.ref];
 
@@ -418,8 +400,8 @@ ${
         return constraint;
     }
 
-    private _generateParametersType(className: string, params: ResolvedParams, mandatoryParams: MandatoryParameters,
-            variantsInClass: VariantsInClass): string {
+    private _generateParametersType(className: string, params: Schema.Parameters, mandatoryParams: Schema.MandatoryParameters,
+            variantsInClass: Schema.VariantsInClass): string {
 
         type ParamVariant = { signature: string, cls: string, param: string };
 
@@ -482,7 +464,7 @@ ${
         }
     }
 
-    private _generateParameterSignature(className: string, param: ParameterEntry, optional?: boolean): string {
+    private _generateParameterSignature(className: string, param: Schema.ParameterEntry, optional?: boolean): string {
         const types: { [key: string]: true } = {};
 
         if (param.value) {
@@ -510,21 +492,21 @@ ${
         });
     }
 
-    private _generateClassCode(className: string, allParams: ResolvedParams, attrToParam: AttributeToParameter,
-            mandatoryParams: MandatoryParameters, nonParamAttrs: NonParameterAttributes,
-            classConstraints: Constraint[], tagConstraints: TagConstraints, paramConstraints: TagConstraints,
-            paramOptionalConstraints: TagConstraints): string {
+    private _generateClassCode(className: string, allParams: Schema.Parameters, attrToParam: Schema.AttributeToParameter,
+            mandatoryParams: Schema.MandatoryParameters, nonParamAttrs: Schema.NonParameterAttributes,
+            classConstraints: Schema.Constraint[], tagConstraints: Schema.TagConstraints, paramConstraints: Schema.TagConstraints,
+            paramOptionalConstraints: Schema.TagConstraints): string {
 
         const paramNames = Object.keys(allParams);
 
-        const paramToAttr: AttributeToParameter = {};
+        const paramToAttr: Schema.AttributeToParameter = {};
 
         for (let attrName of Object.keys(attrToParam)) {
             paramToAttr[attrToParam[attrName]] = attrName;
         }
 
         return `
-export class ${ className } extends AttributeSchema<${ className }_Params> {
+export class ${ className } extends Schema.AttributeSchema<${ className }_Params> {
     static className = ${ JSON.stringify(className) };
     private static _allParams = ${ this._stringify(allParams, 4) };
     private static _attrToParam = ${ this._stringify(attrToParam, 4) };
@@ -542,17 +524,17 @@ export class ${ className } extends AttributeSchema<${ className }_Params> {
         super(tagName, ${ paramNames.length ? 'params' : '{}' });
 
         if (${ this._devCondition }) {
-            const classConstraints: Constraint[] = ${ this._stringify(classConstraints, 4).split('\n').join('\n        ') };
+            const classConstraints: Schema.Constraint[] = ${ this._stringify(classConstraints, 4).split('\n').join('\n        ') };
 
-            const tagConstraints: TagConstraints = ${ this._stringify(tagConstraints, 4).split('\n').join('\n        ') };
+            const tagConstraints: Schema.TagConstraints = ${ this._stringify(tagConstraints, 4).split('\n').join('\n        ') };
 
-            const paramConstraints: TagConstraints = ${ this._stringify(paramConstraints, 4).split('\n').join('\n        ') };
+            const paramConstraints: Schema.TagConstraints = ${ this._stringify(paramConstraints, 4).split('\n').join('\n        ') };
 
-            const paramOptionalConstraints: TagConstraints = ${
+            const paramOptionalConstraints: Schema.TagConstraints = ${
                 this._stringify(paramOptionalConstraints, 4).split('\n').join('\n        ') };
 
             this.getConstraints = () => {
-                const constraints: ParamConstraint[] = classConstraints.slice(0);
+                const constraints: Schema.ParamConstraint[] = classConstraints.slice(0);
 
                 const t = tagConstraints[tagName];
 
@@ -586,7 +568,7 @@ export class ${ className } extends AttributeSchema<${ className }_Params> {
     }
 
     static fromAttributes(tagName: string, attributes: HTMLElementAttributes): ${ className } {
-        const pd = AttributeSchema._getParamsFromAttributes<${ className }_Params>(
+        const pd = Schema.AttributeSchema._getParamsFromAttributes<${ className }_Params>(
             tagName,
             attributes,
             ${ className }.className,
@@ -607,10 +589,10 @@ export class ${ className } extends AttributeSchema<${ className }_Params> {
 `;
     }
 
-    private _generateAssume(className: string, assumptions: ClassAssumption[]): string {
+    private _generateAssume(className: string, assumptions: Schema.ClassAssumption[]): string {
         return `if (${ this._devCondition }) {
-    ${ className }.assume = function(tagName: string, attributes: HTMLElementAttributes): AssumptionSpecificity | undefined {
-        const assumptions: ClassAssumption[] = ${ this._stringify(assumptions, 8) };
+    ${ className }.assume = function(tagName: string, attributes: HTMLElementAttributes): Schema.AssumptionSpecificity | undefined {
+        const assumptions: Schema.ClassAssumption[] = ${ this._stringify(assumptions, 8) };
 
         for (let a of assumptions) {
             let tagMatch = false;

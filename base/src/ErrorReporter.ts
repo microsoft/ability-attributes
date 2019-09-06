@@ -6,9 +6,9 @@
 import { ATTRIBUTE_NAME_ERROR_ID, ATTRIBUTE_NAME_ERROR_MESSAGE, DevEnv } from './DevEnvTypes';
 
 interface DivWithErrorMessages extends HTMLDivElement {
-    __ahAddError?: (id: string, element: HTMLElement) => void;
-    __ahGetError?: (id: string) => HTMLElement | undefined;
-    __ahDismissError?: (element: HTMLElement, keepInDOM?: boolean) => void;
+    __aaAddError?: (id: string, element: HTMLElement) => void;
+    __aaGetError?: (id: string) => HTMLElement | undefined;
+    __aaDismissError?: (element: HTMLElement, keepInDOM?: boolean) => void;
 }
 
 export interface ErrorReporterUI {
@@ -27,7 +27,7 @@ export function createElements(): ErrorReporterUI | undefined {
     const style = document.createElement('style');
 
     style.appendChild(document.createTextNode(`
-.ah-error-container {
+.aa-error-container {
     background: #e07777;
     bottom: 0;
     box-shadow: 0 0 4px rgba(0, 0, 0, .3);
@@ -44,11 +44,11 @@ export function createElements(): ErrorReporterUI | undefined {
     z-index: 2147483647;
 }
 
-.ah-error-container * {
+.aa-error-container * {
     box-sizing: border-box;
 }
 
-.ah-error-message {
+.aa-error-message {
     border-top: 1px solid #ddd;
     clear: both;
     min-height: 24px;
@@ -57,22 +57,22 @@ export function createElements(): ErrorReporterUI | undefined {
     z-index: 1;
 }
 
-.ah-error-message.ah-error-message_render {
+.aa-error-message.aa-error-message_render {
     background: #bbb;
 }
 
-.ah-error-locator {
+.aa-error-locator {
     color: #333;
     display: none;
     float: right;
     font-size: 80%;
 }
 
-.ah-error-locator.ah-error-locator_available {
+.aa-error-locator.aa-error-locator_available {
     display: block;
 }
 
-.ah-error-dismiss {
+.aa-error-dismiss {
     background: #987575;
     border-radius: 4px;
     border: 1px solid #ec99a8;
@@ -86,19 +86,19 @@ export function createElements(): ErrorReporterUI | undefined {
     width: 21px;
 }
 
-.ah-error-dismiss:hover {
+.aa-error-dismiss:hover {
     background: #aa8a8a;
     color: #777;
 }
 
-.ah-error-dismiss::before {
+.aa-error-dismiss::before {
     content: '×';
     left: 5px;
     line-height: 17px;
     position: absolute;
 }
 
-.ah-error-dismiss-all {
+.aa-error-dismiss-all {
     background: #640d0d;
     border-bottom: none;
     border-radius: 10px 10px 2px 2px;
@@ -123,14 +123,14 @@ export function createElements(): ErrorReporterUI | undefined {
     const elements: HTMLElement[] = [];
     let elementByErrorId: { [id: string]: HTMLElement } = {};
 
-    container.__ahAddError = addError;
-    container.__ahGetError = getError;
-    container.__ahDismissError = dismissError;
+    container.__aaAddError = addError;
+    container.__aaGetError = getError;
+    container.__aaDismissError = dismissError;
 
-    container.className = 'ah-error-container';
+    container.className = 'aa-error-container';
 
     const dismissAll = document.createElement('div');
-    dismissAll.className = 'ah-error-dismiss-all';
+    dismissAll.className = 'aa-error-dismiss-all';
     dismissAll.innerText = 'Dismiss all';
 
     container.appendChild(dismissAll);
@@ -140,12 +140,12 @@ export function createElements(): ErrorReporterUI | undefined {
 
         for (let n: HTMLElement | null = e.target as HTMLElement; n; n = n.parentElement) {
             if (n.classList) {
-                if (n.classList.contains('ah-error-dismiss')) {
+                if (n.classList.contains('aa-error-dismiss')) {
                     shouldDismiss = true;
-                } else if (shouldDismiss && n.classList.contains('ah-error-message')) {
+                } else if (shouldDismiss && n.classList.contains('aa-error-message')) {
                     dismissError(n);
                     break;
-                } else if (n.classList.contains('ah-error-dismiss-all')) {
+                } else if (n.classList.contains('aa-error-dismiss-all')) {
                     _lastDismissAllId = _lastId;
 
                     let e: HTMLElement | undefined;
@@ -168,7 +168,7 @@ export function createElements(): ErrorReporterUI | undefined {
 
     container.addEventListener('dblclick', (e) => {
         for (let n: HTMLElement | null = e.target as HTMLElement; n; n = n.parentElement) {
-            if (n.classList && n.classList.contains('ah-error-message')) {
+            if (n.classList && n.classList.contains('aa-error-message')) {
                 dismissError(n);
                 break;
             }
@@ -235,7 +235,7 @@ export function reportError(env: DevEnv, message: string | null, element: HTMLEl
 
     const errorContainer = env.errorContainer as DivWithErrorMessages;
 
-    if (!errorContainer.__ahAddError || !errorContainer.__ahGetError || !errorContainer.__ahDismissError) {
+    if (!errorContainer.__aaAddError || !errorContainer.__aaGetError || !errorContainer.__aaDismissError) {
         return null;
     }
 
@@ -245,15 +245,15 @@ export function reportError(env: DevEnv, message: string | null, element: HTMLEl
     let errorLocator: HTMLElement | undefined;
 
     if (prevId) {
-        errorElement = errorContainer.__ahGetError(prevId);
+        errorElement = errorContainer.__aaGetError(prevId);
     }
 
     if (!errorElement) {
         errorElement = document.createElement('div');
-        errorElement.className = 'ah-error-message' + (isRender ? ' ah-error-message_render' : '');
+        errorElement.className = 'aa-error-message' + (isRender ? ' aa-error-message_render' : '');
 
         const dismiss = document.createElement('div');
-        dismiss.className = 'ah-error-dismiss';
+        dismiss.className = 'aa-error-dismiss';
         errorElement.appendChild(dismiss);
 
         errorText = document.createElement('span');
@@ -279,7 +279,7 @@ export function reportError(env: DevEnv, message: string | null, element: HTMLEl
 
     if (!message) {
         if (prevId) {
-            errorContainer.__ahDismissError(errorElement);
+            errorContainer.__aaDismissError(errorElement);
 
             if (element) {
                 element.removeAttribute(ATTRIBUTE_NAME_ERROR_ID);
@@ -300,9 +300,9 @@ export function reportError(env: DevEnv, message: string | null, element: HTMLEl
 
         errorId = prevId;
     } else {
-        errorContainer.__ahDismissError(errorElement, true);
+        errorContainer.__aaDismissError(errorElement, true);
 
-        errorElement.className = 'ah-error-message' + (isRender ? ' ah-error-message_render' : '');
+        errorElement.className = 'aa-error-message' + (isRender ? ' aa-error-message_render' : '');
         errorText.innerText = message;
 
         errorId = ++env.lastErrorId + '';
@@ -327,9 +327,9 @@ export function reportError(env: DevEnv, message: string | null, element: HTMLEl
 
     errorElement.setAttribute(ATTRIBUTE_NAME_ERROR_ID, errorId);
 
-    errorLocator.className = 'ah-error-locator' + (element ? ' ah-error-locator_available' : '');
+    errorLocator.className = 'aa-error-locator' + (element ? ' aa-error-locator_available' : '');
 
-    errorContainer.__ahAddError(errorId, errorElement);
+    errorContainer.__aaAddError(errorId, errorElement);
 
     _lastId = env.lastErrorId;
 

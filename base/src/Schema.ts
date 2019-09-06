@@ -3,8 +3,10 @@
  * Licensed under the MIT License.
  */
 
-import { AssumptionSpecificity } from './DevEnvTypes';
+import { AssumptionSpecificity, ATTRIBUTE_NAME_CLASS, AttributeSchemaClass } from './DevEnvTypes';
 import { AccessibilityAttributes, HTMLElementAttributes } from './HTML';
+
+export { AssumptionSpecificity, AttributeSchemaClass };
 
 export interface ParameterValue {
     parameter: string | number | boolean | null;
@@ -135,6 +137,10 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
         const classes: { [cls: string]: string } = {};
         const attrs: HTMLElementAttributes = {};
         const nonParamAttrs = this._nonParamAttrs[this._tagName];
+
+        if (__DEV__) {
+            attrs[ATTRIBUTE_NAME_CLASS] = this._className;
+        }
 
         if (!nonParamAttrs) {
             if (__DEV__) {

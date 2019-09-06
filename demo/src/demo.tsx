@@ -3,13 +3,13 @@
  * Licensed under the MIT License.
  */
 
-import { provideAccessibilityClass, provideAccessibilityClassAndProps, setup as setupAbilityAttributes } from 'ability-attributes-react';
+import { DevEnv, Schema } from 'ability-attributes';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 
 import { Button, Checkbox } from './schema';
 
-setupAbilityAttributes();
+DevEnv.setup();
 
 ReactDOM.render(
     <>
@@ -19,7 +19,7 @@ ReactDOM.render(
             Button
         </button>
 
-        <span $accessibility={ provideAccessibilityClassAndProps(Button, { label: 'Button2' }) }>
+        <span { ...getAccessibilityAttributes('span', Button, { label: 'Button2' }) }>
             Button2
         </span>
 
@@ -28,15 +28,26 @@ ReactDOM.render(
                 type='checkbox'
                 aria-label='Lalal'
                 aria-checked='true'
-                $accessibility={ provideAccessibilityClass(Checkbox) }
+                data-aa-class='Checkbox'
             />
             Lalal
         </div>
 
-        <div $accessibility={ provideAccessibilityClassAndProps(Checkbox, { checked: true }) }>
+        <div { ...getAccessibilityAttributes('div', Checkbox, { checked: true }) }>
             Ololo
         </div>
     </>,
 
     document.getElementById('demo')
 );
+
+function getAccessibilityAttributes<P>(tagName: string, Class: Schema.AttributeSchemaClass<P>, params: P) {
+    const attrs = new Class(tagName, params).getAttributes();
+
+    if (attrs.tabindex !== undefined) {
+        attrs.tabIndex = attrs.tabindex;
+        delete attrs.tabindex;
+    }
+
+    return attrs;
+}

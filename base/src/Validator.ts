@@ -3,7 +3,6 @@
  * Licensed under the MIT License.
  */
 
-import { AttributeSchema, ParamConstraint } from './Base';
 import {
     AssumeClass,
     ATTRIBUTE_NAME_CLASS,
@@ -13,10 +12,11 @@ import {
     AttributeSchemaClass,
     ErrorReporter
 } from './DevEnvTypes';
+import { AttributeSchema, ParamConstraint } from './Schema';
 import { getAttributes, isAccessibleElement } from './Utils';
 
 interface HTMLElementWithValidatorId extends HTMLElement {
-    __ahValidatorId?: string;
+    __aaValidatorId?: string;
 }
 
 type GetClass = (name: string) => AttributeSchemaClass | undefined;
@@ -30,6 +30,7 @@ let _removeQueue: { [id: string]: HTMLElementWithValidatorId } = {};
 let _lastValidatorId = 0;
 let _validatorTimer: number | undefined;
 let _enforceClasses = true;
+let _ignoreUnknownClasses = false;
 
 try {
     // IE11 only accepts `filter` argument as a function (not object with the `acceptNode`
@@ -71,8 +72,10 @@ function validate(element: HTMLElementWithValidatorId) {
                 } else {
                     a = Class.fromAttributes(element.tagName.toLowerCase(), getAttributes(element));
                 }
-            } else {
+            } else if (!_ignoreUnknownClasses) {
                 errorMessage = `Unknown class '${ className }'`;
+            } else {
+                return;
             }
         } else if (_enforceClasses) {
             const tagName = element.tagName.toLowerCase();
@@ -181,7 +184,14 @@ function queryJS(element: HTMLElement, funcName: string, name?: string, value?: 
     return false;
 }
 
-export function setup(win: Window, reportError: ErrorReporter, getClass: GetClass, enforceClasses: boolean, assumeClass: AssumeClass) {
+export function setup(
+    win: Window,
+    reportError: ErrorReporter,
+    getClass: GetClass,
+    enforceClasses: boolean,
+    assumeClass: AssumeClass,
+    ignoreUnknownClasses: boolean
+) {
     if (!__DEV__) {
         return;
     }
@@ -194,6 +204,7 @@ export function setup(win: Window, reportError: ErrorReporter, getClass: GetClas
     _getClass = getClass;
     _enforceClasses = enforceClasses;
     _assumeClass = assumeClass;
+    _ignoreUnknownClasses = ignoreUnknownClasses;
 
     const observer = new MutationObserver(mutations => {
         let hasId = false;
@@ -267,18 +278,18 @@ export function setup(win: Window, reportError: ErrorReporter, getClass: GetClas
             const element = node as HTMLElementWithValidatorId;
 
             if (element.getAttribute) {
-                if (!element.__ahValidatorId) {
-                    element.__ahValidatorId = 'ah-' + ++_lastValidatorId;
+                if (!element.__aaValidatorId) {
+                    element.__aaValidatorId = 'aa-' + ++_lastValidatorId;
                 }
 
                 if (removed) {
                     if (element.getAttribute(ATTRIBUTE_NAME_ERROR_ID)) {
-                        delete _validatorQueue[element.__ahValidatorId];
-                        _removeQueue[element.__ahValidatorId] = element;
+                        delete _validatorQueue[element.__aaValidatorId];
+                        _removeQueue[element.__aaValidatorId] = element;
                     }
                 } else {
-                    delete _removeQueue[element.__ahValidatorId];
-                    _validatorQueue[element.__ahValidatorId] = element;
+                    delete _removeQueue[element.__aaValidatorId];
+                    _validatorQueue[element.__aaValidatorId] = element;
                 }
             }
 
