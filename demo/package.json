@@ -1,7 +1,7 @@
 {
   "name": "ability-attributes-demo",
   "private": true,
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "A demo React project for the accessibility attributes schema",
   "author": "Marat Abdullin <marata@microsoft.com>",
   "license": "MIT",
@@ -17,7 +17,7 @@
     "prepare": "npm run build"
   },
   "devDependencies": {
-    "ability-attributes-generator": "^0.0.3",
+    "ability-attributes-generator": "^0.0.4",
     "awesome-typescript-loader": "^3.4.1",
     "rimraf": "^2.7.1",
     "source-map-loader": "^0.2.4",
@@ -31,7 +31,7 @@
   "dependencies": {
     "@types/react": "^16.8.7",
     "@types/react-dom": "^16.0.11",
-    "ability-attributes": "^0.0.3",
+    "ability-attributes": "^0.0.4",
     "react": "^16.8.6",
     "react-dom": "^16.8.6"
   }
