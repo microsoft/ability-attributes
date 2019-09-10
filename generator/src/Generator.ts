@@ -130,6 +130,7 @@ export class CodeGenerator {
         const classes: { [name: string]: true } = {};
 
         code.push(`/* tslint:disable */
+/* eslint-disable */
 /* !!! THIS FILE IS GENERATED, DO NOT EDIT !!! */
 import {
     DevEnv,
