@@ -15,8 +15,10 @@ ReactDOM.render(
     <>
         <h1>Hello world</h1>
 
-        <button aria-labelledby='lalal'>
+        <button role='button' aria-labelledby='lalal'>
             Button
+
+            { JSON.stringify(getAccessibilityAttributes('button', Button, { label: 'fff'})) }
         </button>
 
         <span { ...getAccessibilityAttributes('span', Button, { label: 'Button2' }) }>

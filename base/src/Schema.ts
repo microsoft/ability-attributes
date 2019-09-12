@@ -43,6 +43,7 @@ export interface AttributeEntry {
     name: string;
     default?: string;
     value?: { [value: string]: boolean };
+    optional?: boolean;
 }
 
 export interface NonParameterAttribute {
@@ -204,10 +205,12 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
             const attr = nonParamAttrs[a].attr;
 
             if (!(a in attrs)) {
-                const v = this._defaults && (a in this._defaults) ? this._defaults[a] : attr.default;
-
-                if (v) {
-                    attrs[a] = v;
+                if (this._defaults && (a in this._defaults)) {
+                    attrs[a] = this._defaults[a];
+                } else if (attr.default !== undefined) {
+                    if (!attr.optional) {
+                        attrs[a] = attr.default;
+                    }
                 } else if (__DEV__) {
                     this._error(`Schema error, attribute '${ a }' does not have a value`);
                 }
@@ -288,14 +291,18 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
                 continue;
             }
 
-            if (__DEV__ && !(a in attributes)) {
+            const attr = nonParamAttrsForTag[a].attr;
+            const v = attributes[a];
+
+            if (__DEV__ && !(a in attributes) && !((v === undefined) && attr.optional)) {
                 AttributeSchema._error(`Missing mandatory attribute '${ a }'`, className);
             }
 
             attributesUsed[a] = true;
 
-            const attr = nonParamAttrsForTag[a].attr;
-            const v = attributes[a];
+            if ((v === undefined) && attr.optional) {
+                continue;
+            }
 
             if (attr.value) {
                 if (v in attr.value) {

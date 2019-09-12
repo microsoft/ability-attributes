@@ -34,6 +34,7 @@ interface Parameters {
 interface AttributeEntry {
     name: string;
     value: string | string[];
+    optional?: boolean;
 }
 
 type Attribute = AttributeEntry | { one: AttributeEntry[]; };
@@ -382,7 +383,7 @@ ${
 
             tagAttrs[attr.name] = {
                 class: attrClass,
-                attr: { name: attr.name, default: defaultValue, value }
+                attr: { name: attr.name, default: defaultValue, value, optional: attr.optional }
             };
         }
     }

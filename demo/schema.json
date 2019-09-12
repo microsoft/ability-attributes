@@ -110,7 +110,11 @@
             ],
 
             "tags": {
-                "<button>": {},
+                "<button>": {
+                    "attributes": [
+                        { "name": "role", "value": "button", "optional": true }
+                    ]
+                },
 
                 "<input>": {
                     "attributes": [
