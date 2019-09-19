@@ -50,6 +50,41 @@
       ],
       "type": "object"
     },
+    "AttributeInParameter": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
+        },
+        "constraints": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "ability-attributes-schema#/definitions/ConstraintEntries"
+              },
+              {
+                "$ref": "ability-attributes-schema#/definitions/ConstraintRef"
+              }
+            ]
+          },
+          "type": "array"
+        },
+        "value": {
+          "items": {
+            "$ref": "ability-attributes-schema#/definitions/ParameterValue"
+          },
+          "type": "array"
+        },
+        "optional": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
     "AttributeRef": {
       "additionalProperties": false,
       "properties": {
@@ -64,7 +99,7 @@
     },
     "Attributes": {
       "patternProperties": {
-        "^\\$[A-Za-z_][A-Za-z0-9_]+$": {
+        "^\\$[A-Za-z_][A-Za-z0-9_-]+$": {
           "anyOf": [
             {
               "$ref": "ability-attributes-schema#/definitions/AttributeEntry"
@@ -153,22 +188,7 @@
           "items": {
             "anyOf": [
               {
-                "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
-              },
-              {
-                "additionalProperties": false,
-                "properties": {
-                  "one": {
-                    "items": {
-                      "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
-                    },
-                    "type": "array"
-                  }
-                },
-                "required": [
-                  "one"
-                ],
-                "type": "object"
+                "$ref": "ability-attributes-schema#/definitions/ConstraintEntries"
               },
               {
                 "$ref": "ability-attributes-schema#/definitions/ConstraintRef"
@@ -184,7 +204,7 @@
                 "$ref": "ability-attributes-schema#/definitions/ParameterInClassEntry"
               },
               {
-                "$ref": "ability-attributes-schema#/definitions/ParameterRef"
+                "$ref": "ability-attributes-schema#/definitions/ParameterRefRel"
               },
               {
                 "additionalProperties": false,
@@ -196,32 +216,7 @@
                     "type": "array"
                   },
                   "optional": {
-                    "anyOf": [
-                      {
-                        "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
-                      },
-                      {
-                        "additionalProperties": false,
-                        "properties": {
-                          "one": {
-                            "items": {
-                              "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
-                            },
-                            "type": "array"
-                          }
-                        },
-                        "required": [
-                          "one"
-                        ],
-                        "type": "object"
-                      },
-                      {
-                        "$ref": "ability-attributes-schema#/definitions/ConstraintRef"
-                      },
-                      {
-                        "type": "boolean"
-                      }
-                    ]
+                    "$ref": "ability-attributes-schema#/definitions/ParameterOptional"
                   }
                 },
                 "required": [
@@ -293,6 +288,28 @@
         }
       ]
     },
+    "ConstraintEntries": {
+      "anyOf": [
+        {
+          "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "one": {
+              "items": {
+                "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "one"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "ConstraintRef": {
       "additionalProperties": false,
       "properties": {
@@ -306,81 +323,30 @@
       "type": "object"
     },
     "Constraints": {
+      "additionalProperties": false,
       "patternProperties": {
-        "^\\$[A-Za-z_][A-Za-z0-9_]+$": {
-          "anyOf": [
-            {
-              "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
-            },
-            {
-              "additionalProperties": false,
-              "properties": {
-                "one": {
-                  "items": {
-                    "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
-                  },
-                  "type": "array"
-                }
-              },
-              "required": [
-                "one"
-              ],
-              "type": "object"
-            }
-          ]
+        "^\\$[A-Za-z_][A-Za-z0-9_-]+$": {
+          "$ref": "ability-attributes-schema#/definitions/ConstraintEntries"
         }
       },
-      "additionalProperties": false,
       "type": "object"
     },
     "ParameterEntry": {
       "additionalProperties": false,
       "properties": {
-        "attribute": {
-          "type": "string",
-          "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
-        },
-        "constraints": {
+        "attributes": {
           "items": {
-            "anyOf": [
-              {
-                "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
-              },
-              {
-                "additionalProperties": false,
-                "properties": {
-                  "one": {
-                    "items": {
-                      "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
-                    },
-                    "type": "array"
-                  }
-                },
-                "required": [
-                  "one"
-                ],
-                "type": "object"
-              },
-              {
-                "$ref": "ability-attributes-schema#/definitions/ConstraintRef"
-              }
-            ]
+            "$ref": "#/definitions/AttributeInParameter"
           },
           "type": "array"
         },
         "name": {
           "type": "string",
           "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
-        },
-        "value": {
-          "items": {
-            "$ref": "ability-attributes-schema#/definitions/ParameterValue"
-          },
-          "type": "array"
         }
       },
       "required": [
-        "attribute",
+        "attributes",
         "name"
       ],
       "type": "object"
@@ -388,88 +354,44 @@
     "ParameterInClassEntry": {
       "additionalProperties": false,
       "properties": {
-        "attribute": {
-          "type": "string",
-          "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
+        "attributes": {
+          "items": {
+            "$ref": "#/definitions/AttributeInParameter"
+          },
+          "type": "array"
         },
         "name": {
           "type": "string",
           "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
         },
         "optional": {
-          "anyOf": [
-            {
-              "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
-            },
-            {
-              "additionalProperties": false,
-              "properties": {
-                "one": {
-                  "items": {
-                    "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
-                  },
-                  "type": "array"
-                }
-              },
-              "required": [
-                "one"
-              ],
-              "type": "object"
-            },
-            {
-              "$ref": "ability-attributes-schema#/definitions/ConstraintRef"
-            },
-            {
-              "type": "boolean"
-            }
-          ]
-        },
-        "type": {
-          "type": "string"
-        },
-        "value": {
-          "items": {
-            "$ref": "ability-attributes-schema#/definitions/ParameterValue"
-          },
-          "type": "array"
+          "$ref": "ability-attributes-schema#/definitions/ParameterOptional"
         }
       },
       "required": [
-        "attribute",
+        "attributes",
         "name"
       ],
       "type": "object"
+    },
+    "ParameterOptional": {
+      "anyOf": [
+        {
+          "$ref": "ability-attributes-schema#/definitions/ConstraintEntries"
+        },
+        {
+          "$ref": "ability-attributes-schema#/definitions/ConstraintRef"
+        },
+        {
+          "type": "boolean"
+        }
+      ]
     },
     "ParameterRef": {
       "additionalProperties": false,
       "properties": {
         "optional": {
-          "anyOf": [
-            {
-              "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
-            },
-            {
-              "additionalProperties": false,
-              "properties": {
-                "one": {
-                  "items": {
-                    "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
-                  },
-                  "type": "array"
-                }
-              },
-              "required": [
-                "one"
-              ],
-              "type": "object"
-            },
-            {
-              "$ref": "ability-attributes-schema#/definitions/ConstraintRef"
-            },
-            {
-              "type": "boolean"
-            }
-          ]
+          "$ref": "ability-attributes-schema#/definitions/ParameterOptional"
         },
         "ref": {
           "type": "string"
@@ -480,11 +402,37 @@
       ],
       "type": "object"
     },
+    "ParameterRel": {
+      "additionalProperties": false,
+      "properties": {
+        "rel": {
+          "type": "string",
+          "pattern": "^@[A-Za-z_][A-Za-z0-9_-]+$"
+        }
+      },
+      "required": [
+        "rel"
+      ],
+      "type": "object"
+    },
+    "ParameterRefRel": {
+      "anyOf": [
+        {
+          "$ref": "ability-attributes-schema#/definitions/ParameterRef"
+        },
+        {
+          "$ref": "ability-attributes-schema#/definitions/ParameterRel"
+        }
+      ]
+    },
     "ParameterValue": {
       "additionalProperties": false,
       "properties": {
         "attribute": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
         },
         "parameter": {
           "type": [
@@ -503,7 +451,7 @@
     },
     "Parameters": {
       "patternProperties": {
-        "^\\$[A-Za-z_][A-Za-z0-9_]+$": {
+        "^\\$[A-Za-z_][A-Za-z0-9_-]+$": {
           "anyOf": [
             {
               "$ref": "ability-attributes-schema#/definitions/ParameterEntry"
@@ -564,22 +512,7 @@
           "items": {
             "anyOf": [
               {
-                "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
-              },
-              {
-                "additionalProperties": false,
-                "properties": {
-                  "one": {
-                    "items": {
-                      "$ref": "ability-attributes-schema#/definitions/ConstraintEntry"
-                    },
-                    "type": "array"
-                  }
-                },
-                "required": [
-                  "one"
-                ],
-                "type": "object"
+                "$ref": "ability-attributes-schema#/definitions/ConstraintEntries"
               },
               {
                 "$ref": "ability-attributes-schema#/definitions/ConstraintRef"
@@ -587,6 +520,40 @@
             ]
           },
           "type": "array"
+        },
+        "parameters": {
+          "additionalProperties": false,
+          "patternProperties": {
+            "^@[A-Za-z_][A-Za-z0-9_-]+$": {
+              "anyOf": [
+                {
+                  "$ref": "ability-attributes-schema#/definitions/ParameterInClassEntry"
+                },
+                {
+                  "$ref": "ability-attributes-schema#/definitions/ParameterRef"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "one": {
+                      "items": {
+                        "$ref": "ability-attributes-schema#/definitions/ParameterEntry"
+                      },
+                      "type": "array"
+                    },
+                    "optional": {
+                      "$ref": "ability-attributes-schema#/definitions/ParameterOptional"
+                    }
+                  },
+                  "required": [
+                    "one"
+                  ],
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "type": "object"
         }
       },
       "type": "object"

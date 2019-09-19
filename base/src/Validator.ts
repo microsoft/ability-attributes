@@ -164,6 +164,7 @@ function checkConstraint(element: HTMLElement, constraint: ParamConstraint): boo
 
 function queryXPath(element: HTMLElement, xpath: string): boolean {
     try {
+        console.error(xpath, element, document.evaluate(xpath, element, null, XPathResult.BOOLEAN_TYPE, null).booleanValue);
         return document.evaluate(xpath, element, null, XPathResult.BOOLEAN_TYPE, null).booleanValue;
     } catch (e) {
         _reportError(`Failed to evaluate expression: ${ xpath }, ${ e.message }`, element, false);

@@ -15,7 +15,11 @@ interface ParameterInClassEntry extends Schema.ParameterEntry {
 
 type Parameter = Schema.ParameterEntry | { one: Schema.ParameterEntry[]; };
 
-interface ParameterRef {
+interface ParameterRel {
+    rel: string;
+}
+
+interface ParameterInClassRef {
     ref: string;
     optional?: boolean | Schema.Constraint | Schema.ConstraintRef;
 }
@@ -29,6 +33,22 @@ type ParameterInClass =
 
 interface Parameters {
     [key: string]: Parameter;
+}
+
+interface ParametersMap {
+    [name: string]: true;
+}
+
+interface ResolvedParametersInClass {
+    [name: string]: ParameterInClass;
+}
+
+interface ResolvedRelativeParametersByTag {
+    [tagName: string]: ResolvedParametersInClass;
+}
+
+interface ParamConstraintsByTag {
+    [tagName: string]: Schema.TagConstraints;
 }
 
 interface AttributeEntry {
@@ -54,12 +74,13 @@ interface Constraints {
 interface Tag {
     constraints?: (Schema.Constraint | Schema.ConstraintRef)[];
     attributes?: (Attribute | AttributeRef)[];
+    parameters?: { [rel: string]: ParameterInClass | ParameterInClassRef };
 }
 
 interface Class {
     assumptions?: Schema.ClassAssumption[];
     constraints?: (Schema.Constraint | Schema.ConstraintRef)[];
-    parameters?: (ParameterInClass | ParameterRef)[];
+    parameters?: (ParameterInClass | ParameterInClassRef | ParameterRel)[];
     tags: { [tag: string]: Tag };
 }
 
@@ -161,10 +182,12 @@ ${
         const assumptions: Schema.ClassAssumption[] = [];
         const classConstraints: Schema.Constraint[] = [];
         const tagConstraints: Schema.TagConstraints = {};
-        const paramOptionalConstraints: Schema.TagConstraints = {};
-        const paramConstraints: Schema.TagConstraints = {};
+        const relativeParams: ResolvedRelativeParametersByTag = {};
         const params: ParameterInClass[] = [];
-        const nonParamAttrs: Schema.NonParameterAttributes = {};
+        const nonParamAttrsByTag: Schema.NonParameterAttributesByTag = {};
+        const relParams: { [rel: string]: true } = {};
+        const relParamNames: string[] = [];
+        const tagsByTag: Schema.TagsByTag = {};
         let lastClass = 0;
 
         if (cls.assumptions) {
@@ -193,40 +216,35 @@ ${
 
         if (cls.parameters) {
             for (let p of cls.parameters) {
-                let param: ParameterInClass;
-
-                if ('ref' in p) {
-                    const ref = this._parameters[p.ref];
-
-                    if (!ref) {
-                        throw new Error(`Invalid parameter reference '${ p.ref }' in class '${ className }'`);
-                    }
-
-                    param = { ...ref, optional: p.optional };
+                if ('rel' in p) {
+                    relParams[p.rel] = true;
+                    relParamNames.push(p.rel);
                 } else {
-                    param = { ...p };
+                    params.push(this._resolveParameter(className, p));
                 }
-
-                if (param.optional && (typeof param.optional !== 'boolean')) {
-                    param.optional = this._resolveConstraint(className, param.optional);
-                }
-
-                params.push(param);
             }
         }
 
-        for (let tag of Object.keys(cls.tags)) {
-            const tagNames = this._parseTagNames(className, tag);
+        for (let tagsName of Object.keys(cls.tags)) {
+            const tagNames = this._parseTagNames(className, tagsName);
 
             if (!tagNames.length) {
                 throw new Error(`No tags specified in class '${ className }'`);
             }
 
-            const tmp = cls.tags[tag];
+            for (let t of tagNames) {
+                if (t in tagsByTag) {
+                    throw new Error(`Duplicate tag name '<${ t }>' in class ${ className }`);
+                }
+
+                tagsByTag[t] = tagsName;
+            }
+
+            const tag = cls.tags[tagsName];
             const tagAttrs: Schema.NonParameterAttribute = {};
 
-            if (tmp.attributes) {
-                for (let a of tmp.attributes)  {
+            if (tag.attributes) {
+                for (let a of tag.attributes)  {
                     let attr: Attribute;
 
                     if ('ref' in a) {
@@ -254,100 +272,190 @@ ${
 
             const thisTagConstraints: Schema.Constraint[] = [];
 
-            if (tmp.constraints) {
-                for (let c of tmp.constraints) {
+            if (tag.constraints) {
+                for (let c of tag.constraints) {
                     thisTagConstraints.push(this._resolveConstraint(className, c));
                 }
             }
 
-            for (let tagName of tagNames) {
-                if (tagName in nonParamAttrs) {
-                    throw new Error(`Duplicate tag name '${ tagName }' in class ${ className }`);
+            relativeParams[tagsName] = {};
+
+            if (tag.parameters) {
+                const tagRelParams: ResolvedParametersInClass = relativeParams[tagsName];
+
+                for (let rel of Object.keys(tag.parameters)) {
+                    if (!(relParams[rel])) {
+                        throw new Error(`Invalid relative parameter reference '${ rel }' in '${ tagsName }' in class ${ className }`);
+                    }
+
+                    tagRelParams[rel] = this._resolveParameter(className, tag.parameters[rel]);
                 }
 
-                nonParamAttrs[tagName] = tagAttrs;
-
-                if (thisTagConstraints.length > 0) {
-                    tagConstraints[tagName] = thisTagConstraints;
+                if (Object.keys(tagRelParams).length !== relParamNames.length) {
+                    for (let rel of relParamNames) {
+                        if (!tagRelParams[rel]) {
+                            throw new Error(`Missing relative parameter '${ rel }' in '${ tagsName }' in class ${ className }`);
+                        }
+                    }
                 }
+            } else if (relParamNames.length > 0) {
+                throw new Error(`Missing relative parameters in '${ tagsName }' in class ${ className }`);
+            }
+
+            nonParamAttrsByTag[tagsName] = tagAttrs;
+
+            if (thisTagConstraints.length > 0) {
+                tagConstraints[tagsName] = thisTagConstraints;
             }
         }
 
-        const allParams: Schema.Parameters = {};
-        const attrToParam: Schema.AttributeToParameter = {};
+        const commonParams: Schema.TagRuntimeParameters = {};
+        const commonParamConstraints: Schema.TagConstraints = {};
+        const commonParamOptionalConstraints: Schema.TagConstraints = {};
+        const commonAttributes: Schema.AttributeToParameter = {};
+        const allParamsMap: ParametersMap = {};
+        const allParamsByTag: Schema.RuntimeParameters = {};
+        const paramConstraintsByTag: ParamConstraintsByTag = {};
+        const paramOptionalConstraintsByTag: ParamConstraintsByTag = {};
+        const attrToParamByTag: Schema.AttributeToParameterByTag = {};
         const mandatoryParams: Schema.MandatoryParameters = {};
         const variantsInClass: Schema.VariantsInClass = {};
 
         for (let p of params) {
-            let paramNames: string[] = [];
+            const paramsMap: ParametersMap = {};
 
             lastClass++;
             const paramClass = lastClass + '';
 
-            if ('one' in p) {
-                for (let p2 of p.one) {
-                    if (allParams[p2.name]) {
-                        throw new Error(`Duplicate parameter '${ p2.name }' in class '${ className }'`);
-                    }
+            this._setParameter(className, p, commonParams, paramClass, allParamsMap, paramsMap, commonAttributes, commonParamConstraints);
 
-                    if (attrToParam[p2.attribute]) {
-                        throw new Error(`Duplicate attribute '${ p2.attribute }' in class '${ className }'`);
-                    }
-
-                    const { constraints, ...p3 } = p2;
-
-                    allParams[p3.name] = { class: paramClass, param: p3 };
-                    attrToParam[p3.attribute] = p3.name;
-
-                    paramNames.push(p3.name);
-
-                    if (constraints && constraints.length) {
-                        paramConstraints[p3.name] = constraints.map(c => this._resolveConstraint(className, c));
-                    }
-                }
-            } else {
-                if (allParams[p.name]) {
-                    throw new Error(`Duplicate parameter '${ p.name }' in class '${ className }'`);
-                }
-
-                if (attrToParam[p.attribute]) {
-                    throw new Error(`Duplicate attribute '${ p.attribute }' in class '${ className }'`);
-                }
-
-                const { optional, constraints, ...p2 } = p;
-
-                allParams[p2.name] = { class: paramClass, param: p2 };
-                attrToParam[p2.attribute] = p.name;
-
-                paramNames.push(p2.name);
-
-                if (constraints && constraints.length) {
-                    paramConstraints[p2.name] = constraints.map(c => this._resolveConstraint(className, c));
-                }
-            }
+            const paramNames = Object.keys(paramsMap);
 
             variantsInClass[paramClass] = paramNames.length;
 
             if (!p.optional) {
                 mandatoryParams[paramClass] = paramNames;
             } else if (typeof p.optional !== 'boolean') {
-                paramOptionalConstraints[paramNames.join(', ')] = [p.optional as Schema.ConstraintEntry];
+                commonParamOptionalConstraints[paramNames.join(', ')] = [p.optional as Schema.ConstraintEntry];
+            }
+        }
+
+        let firstTagParams: Schema.TagRuntimeParameters | undefined;
+        let firstTagOnlyParams: Schema.TagRuntimeParameters | undefined;
+        let firstTagsName: string | undefined;
+        let firstOptionalFlags: { [paramName: string]: boolean } | undefined;
+
+        for (let tagsName of Object.keys(relativeParams)) {
+            const tagRelParams = relativeParams[tagsName];
+            const tagRelParamRels = Object.keys(tagRelParams);
+            const tagParamConstraints: Schema.TagConstraints = { ...commonParamConstraints };
+            const tagParamOptionalConstraints: Schema.TagConstraints = { ...commonParamOptionalConstraints };
+            const tagParams: Schema.TagRuntimeParameters = {};
+            const tagAttributes: Schema.AttributeToParameter = { ...commonAttributes };
+            const optionalFlags: { [paramName: string]: boolean } = {};
+
+            for (let rel of tagRelParamRels) {
+                const tagParamsMap: { [name: string]: true } = {};
+                const p = tagRelParams[rel];
+
+                lastClass++;
+                const paramClass = lastClass + '';
+
+                this._setParameter(
+                    className,
+                    p,
+                    tagParams,
+                    paramClass,
+                    firstTagParams === undefined ? allParamsMap : {},
+                    tagParamsMap,
+                    tagAttributes,
+                    tagParamConstraints,
+                    tagsName
+                );
+
+                const paramNames = Object.keys(tagParamsMap);
+
+                variantsInClass[paramClass] = paramNames.length;
+
+                if (!p.optional) {
+                    mandatoryParams[paramClass] = paramNames;
+                } else if (typeof p.optional !== 'boolean') {
+                    tagParamOptionalConstraints[paramNames.join(', ')] = [p.optional as Schema.ConstraintEntry];
+                }
+
+                for (let paramName of paramNames) {
+                    optionalFlags[paramName] = !!p.optional;
+                }
+            }
+
+            allParamsByTag[tagsName] = { ...commonParams, ...tagParams };
+            paramConstraintsByTag[tagsName] = tagParamConstraints;
+            paramOptionalConstraintsByTag[tagsName] = tagParamOptionalConstraints;
+            attrToParamByTag[tagsName] = tagAttributes;
+
+            if ((firstTagOnlyParams === undefined) || (firstTagsName === undefined) || (firstOptionalFlags === undefined)) {
+                firstTagParams = allParamsByTag[tagsName];
+                firstTagOnlyParams = tagParams;
+                firstTagsName = tagsName;
+                firstOptionalFlags = optionalFlags;
+            } else {
+                let aTagsName: string;
+                let bTagsName: string;
+                let aParams: Schema.TagRuntimeParameters;
+                let bParams: Schema.TagRuntimeParameters;
+                let aOptional: { [paramName: string]: boolean };
+                let bOptional: { [paramName: string]: boolean };
+
+                if (Object.keys(firstTagOnlyParams) > Object.keys(tagParams)) {
+                    aTagsName = firstTagsName;
+                    bTagsName = tagsName;
+                    aParams = firstTagOnlyParams;
+                    bParams = tagParams;
+                    aOptional = firstOptionalFlags;
+                    bOptional = optionalFlags;
+                } else {
+                    aTagsName = tagsName;
+                    bTagsName = firstTagsName;
+                    aParams = tagParams;
+                    bParams = firstTagOnlyParams;
+                    aOptional = optionalFlags;
+                    bOptional = firstOptionalFlags;
+                }
+
+                for (let paramName of Object.keys(aParams)) {
+                    if (!(paramName in bParams)) {
+                        throw new Error(
+                            `Inconsistently resolved relative parameters: parameter '${
+                                paramName
+                            }' is present in '${ aTagsName }' and not present in '${ bTagsName }' in class ${ className }`
+                        );
+                    }
+
+                    if (aOptional[paramName] !== bOptional[paramName]) {
+                        throw new Error(
+                            `Parameter '${ paramName }' is ${ aOptional[paramName] ? '' : 'not '}optional in '${
+                                aTagsName
+                            }' and ${ bOptional[paramName] ? '' : 'not '}optional in '${ bTagsName }' in class ${ className }`
+                        );
+                    }
+                }
             }
         }
 
         const code: string[] = [];
 
-        code.push(this._generateParametersType(className, allParams, mandatoryParams, variantsInClass));
+        code.push(this._generateParametersType(className, firstTagParams || {}, mandatoryParams, variantsInClass));
         code.push(this._generateClassCode(
             className,
-            allParams,
-            attrToParam,
+            tagsByTag,
+            allParamsByTag,
+            attrToParamByTag,
             mandatoryParams,
-            nonParamAttrs,
+            nonParamAttrsByTag,
             classConstraints,
             tagConstraints,
-            paramConstraints,
-            paramOptionalConstraints
+            paramConstraintsByTag,
+            paramOptionalConstraintsByTag
         ));
 
         if (assumptions.length) {
@@ -388,6 +496,75 @@ ${
         }
     }
 
+    private _setParameter(className: string, param: ParameterInClass, params: Schema.TagRuntimeParameters, paramClass: string,
+        allParamsMap: ParametersMap, paramsMap: ParametersMap, attrToParam: Schema.AttributeToParameter,
+        paramConstraints: Schema.TagConstraints, tagsName?: string): void {
+
+        if ('one' in param) {
+            for (let p of param.one) {
+                params[p.name] = {
+                    class: paramClass,
+                    param: this._processParameter(className, p, allParamsMap, paramsMap, attrToParam, paramConstraints, tagsName)
+                };
+            }
+        } else {
+            const { optional, ...p } = param;
+
+            params[p.name] = {
+                class: paramClass,
+                param: this._processParameter(className, p, allParamsMap, paramsMap, attrToParam, paramConstraints, tagsName)
+            };
+        }
+    }
+
+    private _processParameter(className: string, param: Schema.ParameterEntry, allParamsMap: ParametersMap, paramsMap: ParametersMap,
+            attrToParam: Schema.AttributeToParameter, paramConstraints: Schema.TagConstraints, tagsName?: string): Schema.ParameterEntry {
+
+        if (allParamsMap[param.name]) {
+            throw new Error(`Duplicate parameter '${ param.name }' in class '${ className }'`);
+        }
+
+        if (!param.attributes.length) {
+            throw new Error(`In param '${ param.name }' of class '${ className }': attributes array cannot be empty`);
+        }
+
+        let attributesInParameter: Schema.AttributeInParameter[] = [];
+
+        let allOptional = true;
+
+        for (let a of param.attributes) {
+            if (attrToParam[a.name]) {
+                throw new Error(
+                    `Duplicate attribute '${ a.name }' set by parameter '${
+                        param.name
+                    }' ${ tagsName ? `in '${ tagsName }' ` : '' }in class '${ className }'`
+                );
+            }
+
+            const { constraints, ...a2 } = a;
+
+            attrToParam[a.name] = param.name;
+            attributesInParameter.push(a2);
+
+            if (!a2.optional) {
+                allOptional = false;
+            }
+
+            if (constraints && constraints.length) {
+                paramConstraints[param.name] = constraints.map(c => this._resolveConstraint(className, c));
+            }
+        }
+
+        if (allOptional) {
+            throw new Error(`One attribute has to be not optional in parameter '${ param.name }' in class '${ className }'`);
+        }
+
+        allParamsMap[param.name] = true;
+        paramsMap[param.name] = true;
+
+        return { name: param.name, attributes: attributesInParameter };
+    }
+
     private _resolveConstraint(className: string, constraint: Schema.Constraint | Schema.ConstraintRef): Schema.Constraint {
         if ('ref' in constraint) {
             const ref = this._constraints[constraint.ref];
@@ -402,7 +579,29 @@ ${
         return constraint;
     }
 
-    private _generateParametersType(className: string, params: Schema.Parameters, mandatoryParams: Schema.MandatoryParameters,
+    private _resolveParameter(className: string, p: ParameterInClass | ParameterInClassRef): ParameterInClass {
+        let param: ParameterInClass;
+
+        if ('ref' in p) {
+            const ref = this._parameters[p.ref];
+
+            if (!ref) {
+                throw new Error(`Invalid parameter reference '${ p.ref }' in class '${ className }'`);
+            }
+
+            param = { ...ref, optional: p.optional };
+        } else {
+            param = { ...p };
+        }
+
+        if (param.optional && (typeof param.optional !== 'boolean')) {
+            param.optional = this._resolveConstraint(className, param.optional);
+        }
+
+        return param;
+    }
+
+    private _generateParametersType(className: string, params: Schema.TagRuntimeParameters, mandatoryParams: Schema.MandatoryParameters,
             variantsInClass: Schema.VariantsInClass): string {
 
         type ParamVariant = { signature: string, cls: string, param: string };
@@ -467,21 +666,55 @@ ${
     }
 
     private _generateParameterSignature(className: string, param: Schema.ParameterEntry, optional?: boolean): string {
-        const types: { [key: string]: true } = {};
+        interface ParamTypes { [key: string]: true; }
+        let types: ParamTypes | undefined;
+        let curTypes: ParamTypes;
 
-        if (param.value) {
-            if (!param.value.length) {
-                throw new Error(`In param '${ param.name }' of class '${ className }': values array cannot be empty`);
+        for (let a of param.attributes) {
+            curTypes = {};
+
+            if (a.value) {
+                if (!a.value.length) {
+                    throw new Error(`In param '${ param.name }' of class '${ className }': values array cannot be empty`);
+                }
+
+                for (let val of a.value) {
+                    curTypes[JSON.stringify(val.parameter)] = true;
+                }
+            } else {
+                curTypes['string'] = true;
             }
 
-            for (let val of param.value) {
-                types[JSON.stringify(val.parameter)] = true;
+            if (types === undefined) {
+                types = curTypes;
+            } else if (!isTypesEqual(types, curTypes)) {
+                throw new Error(
+                    `In param '${
+                        param.name
+                    }' of class '${
+                        className
+                    }': parameter values have to be consistent in all attributes of this parameter`
+                );
             }
-        } else {
-            types['string'] = true;
         }
 
-        return `${ param.name }${ optional ? '?' : ''}: ${ Object.keys(types).join(' | ') };`;
+        return `${ param.name }${ optional ? '?' : ''}: ${ Object.keys(types!).join(' | ') };`;
+
+        function isTypesEqual(t1: ParamTypes, t2: ParamTypes): boolean {
+            const t1Keys = Object.keys(t1);
+
+            if (t1Keys.length !== Object.keys(t2).length) {
+                return false;
+            }
+
+            for (let key of t1Keys) {
+                if (!(key in t2)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
     }
 
     private _parseTagNames(className: string, names: string): string[] {
@@ -494,33 +727,46 @@ ${
         });
     }
 
-    private _generateClassCode(className: string, allParams: Schema.Parameters, attrToParam: Schema.AttributeToParameter,
-            mandatoryParams: Schema.MandatoryParameters, nonParamAttrs: Schema.NonParameterAttributes,
-            classConstraints: Schema.Constraint[], tagConstraints: Schema.TagConstraints, paramConstraints: Schema.TagConstraints,
-            paramOptionalConstraints: Schema.TagConstraints): string {
+    private _generateClassCode(className: string, tagsByTag: Schema.TagsByTag, allParams: Schema.RuntimeParameters,
+            attrToParamByTag: Schema.AttributeToParameterByTag, mandatoryParams: Schema.MandatoryParameters,
+            nonParamAttrs: Schema.NonParameterAttributesByTag, classConstraints: Schema.Constraint[], tagConstraints: Schema.TagConstraints,
+            paramConstraintsByTag: ParamConstraintsByTag, paramOptionalConstraintsByTag: ParamConstraintsByTag): string {
 
         const paramNames = Object.keys(allParams);
 
-        const paramToAttr: Schema.AttributeToParameter = {};
+        const paramToAttrByTag: Schema.AttributeToParameterByTag = {};
+        const tagNames = Object.keys(attrToParamByTag);
 
-        for (let attrName of Object.keys(attrToParam)) {
-            paramToAttr[attrToParam[attrName]] = attrName;
+        for (let tagName of tagNames) {
+            const attrToParam = attrToParamByTag[tagName];
+            const paramToAttr: Schema.AttributeToParameter = {};
+
+            for (let attrName of Object.keys(attrToParam)) {
+                paramToAttr[attrToParam[attrName]] = attrName;
+            }
+
+            paramToAttrByTag[tagName] = paramToAttr;
         }
 
         return `
 export class ${ className } extends Schema.AttributeSchema<${ className }_Params> {
     static className = ${ JSON.stringify(className) };
-    private static _allParams = ${ this._stringify(allParams, 4) };
-    private static _attrToParam = ${ this._stringify(attrToParam, 4) };
-    private static _paramToAttr = ${ this._stringify(paramToAttr, 4) };
+    private static _tagsByTag: Schema.TagsByTag = ${ JSON.stringify(tagsByTag) };
+    private static _allParamsByTag = Schema.AttributeSchema._assignTagNames(${
+        this._stringify(allParams, 4) }, ${ className }._tagsByTag);
+    private static _attrToParamByTag = Schema.AttributeSchema._assignTagNames(${
+        this._stringify(attrToParamByTag, 4) }, ${ className }._tagsByTag);
+    private static _paramToAttrByTag = Schema.AttributeSchema._assignTagNames(${
+        this._stringify(paramToAttrByTag, 4) }, ${ className }._tagsByTag);
+    private static _nonParamAttrsByTag = Schema.AttributeSchema._assignTagNames(${
+        this._stringify(nonParamAttrs, 4) }, ${ className }._tagsByTag);
     private static _mandatoryParams = ${ this._stringify(mandatoryParams, 4) };
-    private static _nonParamAttrs = ${ this._stringify(nonParamAttrs, 4) };
 
     protected _className = ${ className }.className;
-    protected _allParams = ${ className }._allParams;
-    protected _attrToParam = ${ className }._attrToParam;
+    protected _allParamsByTag = ${ className }._allParamsByTag;
+    protected _attrToParamByTag = ${ className }._attrToParamByTag;
     protected _mandatoryParams = ${ className }._mandatoryParams;
-    protected _nonParamAttrs = ${ className }._nonParamAttrs;
+    protected _nonParamAttrsByTag = ${ className }._nonParamAttrsByTag;
 
     constructor(tagName: string${ paramNames.length ? `, params: ${ className }_Params` : '' }) {
         super(tagName, ${ paramNames.length ? 'params' : '{}' });
@@ -528,20 +774,23 @@ export class ${ className } extends Schema.AttributeSchema<${ className }_Params
         if (${ this._devCondition }) {
             const classConstraints: Schema.Constraint[] = ${ this._stringify(classConstraints, 4).split('\n').join('\n        ') };
 
-            const tagConstraints: Schema.TagConstraints = ${ this._stringify(tagConstraints, 4).split('\n').join('\n        ') };
+            const tagConstraints: Schema.TagConstraints = Schema.AttributeSchema._assignTagNames(${
+                this._stringify(tagConstraints, 4).split('\n').join('\n        ')
+            }, ${ className }._tagsByTag)[tagName];
 
-            const paramConstraints: Schema.TagConstraints = ${ this._stringify(paramConstraints, 4).split('\n').join('\n        ') };
+            const paramConstraints: Schema.TagConstraints = Schema.AttributeSchema._assignTagNames(${
+                this._stringify(paramConstraintsByTag, 4).split('\n').join('\n        ')
+            }, ${ className }._tagsByTag)[tagName];
 
-            const paramOptionalConstraints: Schema.TagConstraints = ${
-                this._stringify(paramOptionalConstraints, 4).split('\n').join('\n        ') };
+            const paramOptionalConstraints: Schema.TagConstraints = Schema.AttributeSchema._assignTagNames(${
+                this._stringify(paramOptionalConstraintsByTag, 4).split('\n').join('\n        ')
+            }, ${ className }._tagsByTag)[tagName];
 
             this.getConstraints = () => {
                 const constraints: Schema.ParamConstraint[] = classConstraints.slice(0);
 
-                const t = tagConstraints[tagName];
-
-                if (t) {
-                    Array.prototype.push.apply(constraints, t);
+                if (tagConstraints) {
+                    Array.prototype.push.apply(constraints, tagConstraints);
                 }
 
                 for (let paramName of Object.keys(paramConstraints)) {
@@ -574,11 +823,11 @@ export class ${ className } extends Schema.AttributeSchema<${ className }_Params
             tagName,
             attributes,
             ${ className }.className,
-            ${ className }._allParams,
-            ${ className }._attrToParam,
-            ${ className }._paramToAttr,
+            ${ className }._allParamsByTag,
+            ${ className }._attrToParamByTag,
+            ${ className }._paramToAttrByTag,
             ${ className }._mandatoryParams,
-            ${ className }._nonParamAttrs
+            ${ className }._nonParamAttrsByTag
         );
 
         const instance = new ${ className }(tagName${ paramNames.length ? ', pd.params' : '' });

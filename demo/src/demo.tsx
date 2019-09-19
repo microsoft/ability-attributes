@@ -17,11 +17,9 @@ ReactDOM.render(
 
         <button role='button' aria-labelledby='lalal'>
             Button
-
-            { JSON.stringify(getAccessibilityAttributes('button', Button, { label: 'fff'})) }
         </button>
 
-        <span { ...getAccessibilityAttributes('span', Button, { label: 'Button2' }) }>
+        <span { ...getAccessibilityAttributes('span', Button, { label: 'Button2', disabled: true }) }>
             Button2
         </span>
 
@@ -33,6 +31,11 @@ ReactDOM.render(
                 data-aa-class='Checkbox'
             />
             Lalal
+            <input
+                type='button'
+                data-aa-class='Button'
+                value='Piu'
+            />
         </div>
 
         <div { ...getAccessibilityAttributes('div', Checkbox, { checked: true }) }>
@@ -49,6 +52,12 @@ function getAccessibilityAttributes<P>(tagName: string, Class: Schema.AttributeS
     if (attrs.tabindex !== undefined) {
         attrs.tabIndex = attrs.tabindex;
         delete attrs.tabindex;
+    }
+
+    for (let attrName in attrs) {
+        if (attrs[attrName] === '') {
+            attrs[attrName] = attrName;
+        }
     }
 
     return attrs;

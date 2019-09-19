@@ -10,25 +10,38 @@ export { AssumptionSpecificity, AttributeSchemaClass };
 
 export interface ParameterValue {
     parameter: string | number | boolean | null;
-    attribute: string;
+    attribute: string | boolean;
+}
+
+export interface AttributeInParameter {
+    name: string;
+    value?: ParameterValue[];
+    constraints?: (Constraint | ConstraintRef)[];
+    optional?: boolean;
 }
 
 export interface ParameterEntry {
     name: string;
-    attribute: string;
-    value?: ParameterValue[];
-    constraints?: (Constraint | ConstraintRef)[];
+    attributes: AttributeInParameter[];
 }
 
-export interface Parameters {
+export interface TagRuntimeParameters {
     [name: string]: {
         class: string,
         param: ParameterEntry
     };
 }
 
+export interface RuntimeParameters {
+    [tagName: string]: TagRuntimeParameters;
+}
+
 export interface AttributeToParameter {
     [name: string]: string;
+}
+
+export interface AttributeToParameterByTag {
+    [tagName: string]: AttributeToParameter;
 }
 
 export interface MandatoryParameters {
@@ -53,7 +66,7 @@ export interface NonParameterAttribute {
     };
 }
 
-export interface NonParameterAttributes {
+export interface NonParameterAttributesByTag {
     [tagName: string]: NonParameterAttribute;
 }
 
@@ -99,12 +112,16 @@ export type ClassAssumption = {
     attributes: AttributeInAssumption[];
 };
 
+export interface TagsByTag {
+    [tagName: string]: string;
+}
+
 export abstract class AttributeSchema<P extends { [name: string]: any }> {
     protected abstract _className: string;
-    protected abstract _allParams: Parameters;
-    protected abstract _attrToParam: AttributeToParameter;
+    protected abstract _allParamsByTag: RuntimeParameters;
+    protected abstract _attrToParamByTag: AttributeToParameterByTag;
     protected abstract _mandatoryParams: MandatoryParameters;
-    protected abstract _nonParamAttrs: NonParameterAttributes;
+    protected abstract _nonParamAttrsByTag: NonParameterAttributesByTag;
     protected _tagName: string;
     protected _params: P;
     protected _paramNames: string[];
@@ -132,18 +149,30 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
         this._defaults = defaults;
     }
 
+    protected static _assignTagNames(byTag: { [tagsName: string]: any }, tagsByTag: TagsByTag): { [tagName: string]: any } {
+        const tagNames = Object.keys(tagsByTag);
+        const ret: { [tagName: string]: any } = {};
+
+        for (let tagName of tagNames) {
+            ret[tagName] = byTag[tagsByTag[tagName]];
+        }
+
+        return ret;
+    }
+
     getAttributes(): HTMLElementAttributes {
         const params = this._params;
-        const allParams = this._allParams;
+        const allParams = this._allParamsByTag[this._tagName];
         const classes: { [cls: string]: string } = {};
         const attrs: HTMLElementAttributes = {};
-        const nonParamAttrs = this._nonParamAttrs[this._tagName];
+        const attrToParam = this._attrToParamByTag[this._tagName];
+        const nonParamAttrs = this._nonParamAttrsByTag[this._tagName];
 
         if (__DEV__) {
             attrs[ATTRIBUTE_NAME_CLASS] = this._className;
         }
 
-        if (!nonParamAttrs) {
+        if (!allParams || !nonParamAttrs) {
             if (__DEV__) {
                 this._error(`Illegal tag '${ this._tagName }'`);
             }
@@ -172,24 +201,30 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
 
             classes[paramDef.class] = paramName;
 
-            const values = paramDef.param.value;
+            for (let a of paramDef.param.attributes) {
+                if (a.optional) {
+                    continue;
+                }
 
-            if (values) {
-                let illegalValue = true;
+                const values = a.value;
 
-                for (let value of values) {
-                    if (value.parameter === params[paramName]) {
-                        attrs[paramDef.param.attribute] = value.attribute;
-                        illegalValue = false;
-                        break;
+                if (values) {
+                    let illegalValue = true;
+
+                    for (let value of values) {
+                        if (value.parameter === params[paramName]) {
+                            attrs[a.name] = (typeof value.attribute === 'boolean') ? '' : value.attribute;
+                            illegalValue = false;
+                            break;
+                        }
                     }
-                }
 
-                if (__DEV__ && illegalValue) {
-                    this._error(`Illegal parameter value '${ params[paramName] }' of parameter '${ paramName }'`);
+                    if (__DEV__ && illegalValue) {
+                        this._error(`Illegal parameter value '${ params[paramName] }' of parameter '${ paramName }'`);
+                    }
+                } else {
+                    attrs[a.name] = params[paramName];
                 }
-            } else {
-                attrs[paramDef.param.attribute] = params[paramName];
             }
         }
 
@@ -215,7 +250,7 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
                     this._error(`Schema error, attribute '${ a }' does not have a value`);
                 }
             } else if (__DEV__ && (!attr.value || !(attrs[a] in attr.value))) {
-                this._error(`Schema error, parameter '${ this._attrToParam[a] }' sets illegal value of attribute '${ a }'`);
+                this._error(`Schema error, parameter '${ attrToParam[a] }' sets illegal value of attribute '${ a }'`);
             }
         }
 
@@ -223,10 +258,13 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
     }
 
     protected static _getParamsFromAttributes<P extends { [name: string]: any }>(
-            tagName: string, attributes: HTMLElementAttributes, className: string, allParams: Parameters,
-            attrToParam: AttributeToParameter, paramToAttr: AttributeToParameter, mandatoryParams: MandatoryParameters,
-            nonParamAttrs: NonParameterAttributes): { params: P, defaults: AttributeDefaults } {
+            tagName: string, attributes: HTMLElementAttributes, className: string, allParamsByTag: RuntimeParameters,
+            attrToParamByTag: AttributeToParameterByTag, paramToAttrByTag: AttributeToParameterByTag, mandatoryParams: MandatoryParameters,
+            nonParamAttrs: NonParameterAttributesByTag): { params: P, defaults: AttributeDefaults } {
 
+        const allParams = allParamsByTag[tagName];
+        const attrToParam = attrToParamByTag[tagName];
+        const paramToAttr = paramToAttrByTag[tagName];
         const nonParamAttrsForTag = nonParamAttrs[tagName];
 
         if (__DEV__ && !nonParamAttrsForTag) {
@@ -240,41 +278,69 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
         const attrNames = Object.keys(attributes);
 
         for (let attrName of attrNames) {
-            if (attrName in attrToParam) {
+            if (!attributesUsed[attrName] && (attrName in attrToParam)) {
                 const paramName = attrToParam[attrName];
                 const param = allParams[paramName];
 
                 if (__DEV__ && (param.class in classes)) {
                     AttributeSchema._error(
-                        `Only one of '${ attrName }' or '${ classes[param.class] }' attributes can be present`,
+                        `Only one of '${ attrName }' and '${ classes[param.class] }' attributes can be present`,
                         className
                     );
                 }
 
                 classes[param.class] = attrName;
+                let paramVal: ParameterValue['parameter'] | undefined;
 
-                if (param.param.value) {
-                    let illegalValue = true;
+                for (let a of param.param.attributes) {
+                    if (a.value) {
+                        let illegalValue = true;
 
-                    for (let value of param.param.value) {
-                        if (value.attribute === attributes[attrName]) {
-                            params[paramName] = value.parameter;
-                            illegalValue = false;
-                            break;
+                        for (let value of a.value) {
+                            const expected = value.attribute;
+                            const attrVal = attributes[a.name];
+
+                            const valueMatched = (!a.optional && (expected === false) && (attrVal === undefined)) ||
+                                ((expected === true) && ((attrVal === '') || (attrVal === attrName))) ||
+                                (expected === attrVal);
+
+                            if (valueMatched || (paramVal === value.parameter)) {
+                                if (__DEV__ && (paramVal !== undefined) && (paramVal !== value.parameter)) {
+                                    AttributeSchema._error(
+                                        `Inconsistent value of parameter '${
+                                            param.param.name
+                                        }': '${ paramVal }' != '${ value.parameter }'`,
+                                        className
+                                    );
+                                }
+
+                                if (valueMatched || ((attrVal === undefined) && a.optional)) {
+                                    illegalValue = false;
+                                }
+
+                                if (paramVal === undefined) {
+                                    paramVal = value.parameter;
+                                    break;
+                                }
+                            }
                         }
+
+                        if (__DEV__ && illegalValue) {
+                            AttributeSchema._error(
+                                `Illegal attribute value '${ attributes[a.name] }' of attribute '${ a.name }'`,
+                                className
+                            );
+                        }
+                    } else {
+                        paramVal = attributes[attrName];
                     }
 
-                    if (__DEV__ && illegalValue) {
-                        AttributeSchema._error(
-                            `Illegal attribute value '${ attributes[attrName] }' of attribute '${ attrName }'`,
-                            className
-                        );
-                    }
-                } else {
-                    params[paramName] = attributes[attrName];
+                    attributesUsed[a.name] = true;
                 }
 
-                attributesUsed[attrName] = true;
+                if (paramVal !== undefined) {
+                    params[paramName] = paramVal;
+                }
             }
         }
 
