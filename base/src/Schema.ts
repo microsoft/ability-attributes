@@ -3,7 +3,8 @@
  * Licensed under the MIT License.
  */
 
-import { AssumptionSpecificity, ATTRIBUTE_NAME_CLASS, AttributeSchemaClass } from './DevEnvTypes';
+import { AbilityAttributesError, AssumptionSpecificity, ATTRIBUTE_NAME_CLASS, AttributeSchemaClass } from './DevEnvTypes';
+import * as Errors from './Errors';
 import { AccessibilityAttributes, HTMLElementAttributes } from './HTML';
 
 export { AssumptionSpecificity, AttributeSchemaClass };
@@ -137,12 +138,12 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
 
     static assume?: (tagName: string, attributes: HTMLElementAttributes) => AssumptionSpecificity | undefined;
 
-    private static _error(message: string, className: string): void {
-        throw new Error(`${ message } in class '${ className }'`);
+    private static _error(error: AbilityAttributesError): void {
+        throw error;
     }
 
-    private _error(message: string): void {
-        AttributeSchema._error(message, this._className);
+    private _error(error: AbilityAttributesError): void {
+        AttributeSchema._error(error);
     }
 
     protected _setDefaults(defaults: AttributeDefaults): void {
@@ -174,7 +175,7 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
 
         if (!allParams || !nonParamAttrs) {
             if (__DEV__) {
-                this._error(`Illegal tag '${ this._tagName }'`);
+                this._error(new Errors.IllegalTagError(this._tagName, this._className));
             }
 
             return attrs;
@@ -185,7 +186,7 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
 
             if (!paramDef) {
                 if (__DEV__) {
-                    this._error(`Unknown param '${ paramName }'`);
+                    this._error(new Errors.UnknownParameterError(paramName, this._className));
                 }
 
                 continue;
@@ -193,7 +194,7 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
 
             if (paramDef.class in classes) {
                 if (__DEV__) {
-                    this._error(`Only one of '${ paramName }' or '${ classes[paramDef.class] }' parameters can be present`);
+                    this._error(new Errors.ExcessiveParameterError(paramName, classes[paramDef.class], this._className));
                 }
 
                 continue;
@@ -220,7 +221,7 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
                     }
 
                     if (__DEV__ && illegalValue) {
-                        this._error(`Illegal parameter value '${ params[paramName] }' of parameter '${ paramName }'`);
+                        this._error(new Errors.IllegalParameterValueError(paramName, params[paramName], this._className));
                     }
                 } else {
                     attrs[a.name] = params[paramName];
@@ -231,7 +232,9 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
         if (__DEV__) {
             for (let c of Object.keys(this._mandatoryParams)) {
                 if (!(c in classes)) {
-                    this._error(`Missing mandatory parameter ${ this._mandatoryParams[c].map(p => `'${ p }'`).join(' or ') }`);
+                    this._error(
+                        new Errors.MissingParameterError(this._mandatoryParams[c].map(p => `'${ p }'`).join(' or '), this._className)
+                    );
                 }
             }
         }
@@ -247,10 +250,10 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
                         attrs[a] = attr.default;
                     }
                 } else if (__DEV__) {
-                    this._error(`Schema error, attribute '${ a }' does not have a value`);
+                    this._error(new Errors.SchemaNoAttributeValueError(a, this._className));
                 }
             } else if (__DEV__ && (!attr.value || !(attrs[a] in attr.value))) {
-                this._error(`Schema error, parameter '${ attrToParam[a] }' sets illegal value of attribute '${ a }'`);
+                this._error(new Errors.SchemaIllegalAttributeValueError(attrToParam[a], a, this._className));
             }
         }
 
@@ -268,7 +271,7 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
         const nonParamAttrsForTag = nonParamAttrs[tagName];
 
         if (__DEV__ && !nonParamAttrsForTag) {
-            AttributeSchema._error(`Illegal tag '${ tagName }'`, className);
+            AttributeSchema._error(new Errors.IllegalTagError(tagName, className));
         }
 
         const params: { [name: string]: string | number | boolean | null } = {};
@@ -283,10 +286,7 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
                 const param = allParams[paramName];
 
                 if (__DEV__ && (param.class in classes)) {
-                    AttributeSchema._error(
-                        `Only one of '${ attrName }' and '${ classes[param.class] }' attributes can be present`,
-                        className
-                    );
+                    AttributeSchema._error(new Errors.ExcessiveAttributeError(attrName, classes[param.class], className));
                 }
 
                 classes[param.class] = attrName;
@@ -307,10 +307,7 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
                             if (valueMatched || (paramVal === value.parameter)) {
                                 if (__DEV__ && (paramVal !== undefined) && (paramVal !== value.parameter)) {
                                     AttributeSchema._error(
-                                        `Inconsistent value of parameter '${
-                                            param.param.name
-                                        }': '${ paramVal }' != '${ value.parameter }'`,
-                                        className
+                                        new Errors.InconsistentParameterValueError(param.param.name, paramVal, value.parameter, className)
                                     );
                                 }
 
@@ -326,10 +323,7 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
                         }
 
                         if (__DEV__ && illegalValue) {
-                            AttributeSchema._error(
-                                `Illegal attribute value '${ attributes[a.name] }' of attribute '${ a.name }'`,
-                                className
-                            );
+                            AttributeSchema._error(new Errors.IllegalAttributeValueError(a.name, attributes[a.name], className));
                         }
                     } else {
                         paramVal = attributes[attrName];
@@ -346,9 +340,10 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
 
         for (let c of Object.keys(mandatoryParams)) {
             if (__DEV__ && !(c in classes)) {
-                AttributeSchema._error(`Missing mandatory attribute ${
-                    mandatoryParams[c].map(p => `'${ paramToAttr[p] }'`).join(' or ')
-                }`, className);
+
+                AttributeSchema._error(
+                    new Errors.MissingAttributeError(mandatoryParams[c].map(p => `'${ paramToAttr[p] }'`).join(' or '), className)
+                );
             }
         }
 
@@ -361,7 +356,7 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
             const v = attributes[a];
 
             if (__DEV__ && !(a in attributes) && !((v === undefined) && attr.optional)) {
-                AttributeSchema._error(`Missing mandatory attribute '${ a }'`, className);
+                AttributeSchema._error(new Errors.MissingAttributeError(a, className));
             }
 
             attributesUsed[a] = true;
@@ -374,7 +369,7 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
                 if (v in attr.value) {
                     defaults[a] = v;
                 } else if (__DEV__) {
-                    AttributeSchema._error(`Illegal attribute value '${ v }' of attribute '${ a }'`, className);
+                    AttributeSchema._error(new Errors.IllegalAttributeValueError(a, v, className));
                 }
             } else {
                 defaults[a] = v;
@@ -384,7 +379,7 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
         if (__DEV__) {
             for (let attrName of attrNames) {
                 if (!(attrName in attributesUsed) && (attrName in AccessibilityAttributes)) {
-                    AttributeSchema._error(`Illegal attribute '${ attrName }' for tag '${ tagName }'`, className);
+                    AttributeSchema._error(new Errors.IllegalTagAttributeError(attrName, tagName, className));
                 }
             }
         }

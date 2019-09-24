@@ -3,335 +3,278 @@
  * Licensed under the MIT License.
  */
 
-import { ATTRIBUTE_NAME_ERROR_ID, ATTRIBUTE_NAME_ERROR_MESSAGE, DevEnv } from './DevEnvTypes';
+import {
+    AbilityAttributesError,
+    ATTRIBUTE_NAME_ERROR_ID,
+    ATTRIBUTE_NAME_ERROR_MESSAGE,
+    ErrorReporter as ErrorReporterBase,
+    WindowWithDevEnv
+} from './DevEnvTypes';
 
-interface DivWithErrorMessages extends HTMLDivElement {
-    __aaAddError?: (id: string, element: HTMLElement) => void;
-    __aaGetError?: (id: string) => HTMLElement | undefined;
-    __aaDismissError?: (element: HTMLElement, keepInDOM?: boolean) => void;
+// Will be replaced with ErrorReporter.css by utils/babel-plugin-error-reporter-css.js.
+declare function getErrorReporterCSS(): string;
+
+interface ErrorMetadata {
+    id: string;
+    element: ValidatedHTMLElement;
+    error: AbilityAttributesError;
+    visible: boolean;
+    shouldRerender?: boolean;
+    rendered?: HTMLDivElement;
+    locator?: string;
 }
 
-export interface ErrorReporterUI {
-    style: HTMLStyleElement;
-    container: HTMLDivElement;
+interface ValidatedHTMLElement extends HTMLElement {
+    __aaError?: ErrorMetadata;
 }
 
 let _lastId = 0;
-let _lastDismissAllId = 0;
+let _errors: { [id: string]: ErrorMetadata } = {};
 
-export function createElements(): ErrorReporterUI | undefined {
-    if (!__DEV__) {
-        return;
+export class ErrorReporter extends ErrorReporterBase {
+    private _window: WindowWithDevEnv;
+    private _renderTimer: number | undefined;
+    private _isCollapsed = true;
+
+    private _styles: HTMLStyleElement | undefined;
+    private _container: HTMLDivElement | undefined;
+    private _toggle: HTMLButtonElement | undefined;
+    private _expanded: HTMLDivElement | undefined;
+
+    constructor(w: Window) {
+        super();
+
+        this._window = w as WindowWithDevEnv;
+
+        if (this._window.__abilityAttributesDev) {
+            return this._window.__abilityAttributesDev.error as any as ErrorReporter;
+        }
+
+        this._initUI(false);
     }
 
-    const style = document.createElement('style');
+    report(element: HTMLElement, error: AbilityAttributesError): void {
+        let meta = (element as ValidatedHTMLElement).__aaError;
 
-    style.appendChild(document.createTextNode(`
-.aa-error-container {
-    background: #e07777;
-    bottom: 0;
-    box-shadow: 0 0 4px rgba(0, 0, 0, .3);
-    color: #000;
-    font-family: Helvetica;
-    font-size: 14px;
-    left: 0;
-    line-height: 20px;
-    max-height: 205px;
-    opacity: .95;
-    overflow: scroll;
-    position: fixed;
-    right: 0;
-    z-index: 2147483647;
-}
-
-.aa-error-container * {
-    box-sizing: border-box;
-}
-
-.aa-error-message {
-    border-top: 1px solid #ddd;
-    clear: both;
-    min-height: 24px;
-    padding: 8px 16px 8px 36px;
-    position: relative;
-    z-index: 1;
-}
-
-.aa-error-message.aa-error-message_render {
-    background: #bbb;
-}
-
-.aa-error-locator {
-    color: #333;
-    display: none;
-    float: right;
-    font-size: 80%;
-}
-
-.aa-error-locator.aa-error-locator_available {
-    display: block;
-}
-
-.aa-error-dismiss {
-    background: #987575;
-    border-radius: 4px;
-    border: 1px solid #ec99a8;
-    color: #fff;
-    cursor: pointer;
-    height: 21px;
-    left: 8px;
-    margin-top: -10px;
-    position: absolute;
-    top: 50%;
-    width: 21px;
-}
-
-.aa-error-dismiss:hover {
-    background: #aa8a8a;
-    color: #777;
-}
-
-.aa-error-dismiss::before {
-    content: '×';
-    left: 5px;
-    line-height: 17px;
-    position: absolute;
-}
-
-.aa-error-dismiss-all {
-    background: #640d0d;
-    border-bottom: none;
-    border-radius: 10px 10px 2px 2px;
-    border: 1px solid #ec99a8;
-    bottom: 0;
-    color: #fff;
-    cursor: pointer;
-    display: none;
-    font-size: 80%;
-    left: 50%;
-    margin-left: -50px;
-    opacity: .8;
-    padding: 4px;
-    position: fixed;
-    text-align: center;
-    width: 100px;
-    z-index: 100500;
-}`));
-
-    const container = document.createElement('div') as DivWithErrorMessages;
-
-    const elements: HTMLElement[] = [];
-    let elementByErrorId: { [id: string]: HTMLElement } = {};
-
-    container.__aaAddError = addError;
-    container.__aaGetError = getError;
-    container.__aaDismissError = dismissError;
-
-    container.className = 'aa-error-container';
-
-    const dismissAll = document.createElement('div');
-    dismissAll.className = 'aa-error-dismiss-all';
-    dismissAll.innerText = 'Dismiss all';
-
-    container.appendChild(dismissAll);
-
-    container.addEventListener('click', (e) => {
-        let shouldDismiss = false;
-
-        for (let n: HTMLElement | null = e.target as HTMLElement; n; n = n.parentElement) {
-            if (n.classList) {
-                if (n.classList.contains('aa-error-dismiss')) {
-                    shouldDismiss = true;
-                } else if (shouldDismiss && n.classList.contains('aa-error-message')) {
-                    dismissError(n);
-                    break;
-                } else if (n.classList.contains('aa-error-dismiss-all')) {
-                    _lastDismissAllId = _lastId;
-
-                    let e: HTMLElement | undefined;
-
-                    elementByErrorId = {};
-
-                    while ((e = elements.pop())) {
-                        if (container.contains(e)) {
-                            container.removeChild(e);
-                        }
-                    }
-
-                    break;
-                }
-            }
-        }
-
-        updateState();
-    });
-
-    container.addEventListener('dblclick', (e) => {
-        for (let n: HTMLElement | null = e.target as HTMLElement; n; n = n.parentElement) {
-            if (n.classList && n.classList.contains('aa-error-message')) {
-                dismissError(n);
-                break;
-            }
-        }
-
-        updateState();
-    });
-
-    return {
-        style,
-        container
-    };
-
-    function updateState() {
-        dismissAll.style.display = elements.length > 1 ? 'block' : 'none';
-    }
-
-    function addError(id: string, e: HTMLElement) {
-        if (!elementByErrorId[id]) {
-            elements.push(e);
-            elementByErrorId[id] = e;
-        }
-
-        if (container.firstChild) {
-            if (container.firstChild !== e) {
-                container.insertBefore(e, container.firstChild);
+        if (meta) {
+            if (meta.error.message !== error.message) {
+                meta.visible = true;
+                meta.shouldRerender = true;
+                meta.error.message = error.message;
+                delete _errors[meta.id];
+                _errors[meta.id] = meta;
             }
         } else {
-            container.appendChild(e);
+            meta = (element as ValidatedHTMLElement).__aaError = {
+                id: `${ ++_lastId }`,
+                element,
+                error,
+                visible: true
+            };
+
+            _errors[meta.id] = meta;
         }
 
-        updateState();
-    }
+        element.setAttribute(ATTRIBUTE_NAME_ERROR_ID, meta.id);
+        element.setAttribute(ATTRIBUTE_NAME_ERROR_MESSAGE, meta.error.message);
 
-    function getError(id: string): HTMLElement | undefined {
-        return elementByErrorId[id];
-    }
+        if (meta.visible) {
+            meta.locator = `\$('[${ ATTRIBUTE_NAME_ERROR_ID }="${ meta.id }"]')`;
 
-    function dismissError(e: HTMLElement, keepInDOM?: boolean) {
-        if (!keepInDOM && container.contains(e)) {
-            container.removeChild(e);
-        }
+            this._render();
 
-        const prevId = e.getAttribute(ATTRIBUTE_NAME_ERROR_ID);
-
-        if (prevId) {
-            delete elementByErrorId[prevId];
-        }
-
-        const index = elements.indexOf(e);
-
-        if (index >= 0) {
-            elements.splice(index, 1);
-
-            updateState();
-        }
-    }
-}
-
-export function reportError(env: DevEnv, message: string | null, element: HTMLElement | null, isRender: boolean): string | null {
-    if (!__DEV__) {
-        return null;
-    }
-
-    const errorContainer = env.errorContainer as DivWithErrorMessages;
-
-    if (!errorContainer.__aaAddError || !errorContainer.__aaGetError || !errorContainer.__aaDismissError) {
-        return null;
-    }
-
-    const prevId = element ? element.getAttribute(ATTRIBUTE_NAME_ERROR_ID) : null;
-    let errorElement: HTMLElement | undefined;
-    let errorText: HTMLElement | undefined;
-    let errorLocator: HTMLElement | undefined;
-
-    if (prevId) {
-        errorElement = errorContainer.__aaGetError(prevId);
-    }
-
-    if (!errorElement) {
-        errorElement = document.createElement('div');
-        errorElement.className = 'aa-error-message' + (isRender ? ' aa-error-message_render' : '');
-
-        const dismiss = document.createElement('div');
-        dismiss.className = 'aa-error-dismiss';
-        errorElement.appendChild(dismiss);
-
-        errorText = document.createElement('span');
-        errorElement.appendChild(errorText);
-
-        errorLocator = document.createElement('div');
-        errorElement.appendChild(errorLocator);
-    } else {
-        const dismiss = errorElement.firstChild as HTMLElement;
-
-        if (dismiss) {
-            errorText = dismiss.nextSibling as HTMLElement;
-        }
-
-        if (errorText) {
-            errorLocator = errorText.nextSibling as HTMLElement;
+            console.error(`${ error.message }, ${ meta.locator }`);
         }
     }
 
-    if (!errorText || !errorLocator) {
-        return null;
+    remove(element: HTMLElement): void {
+        const meta = (element as ValidatedHTMLElement).__aaError;
+
+        if (meta) {
+            delete _errors[meta.id];
+            delete (element as ValidatedHTMLElement).__aaError;
+            delete meta.element;
+
+            element.removeAttribute(ATTRIBUTE_NAME_ERROR_ID);
+            element.removeAttribute(ATTRIBUTE_NAME_ERROR_MESSAGE);
+
+            this._removeErrorView(meta);
+            this._render();
+        }
     }
 
-    if (!message) {
-        if (prevId) {
-            errorContainer.__aaDismissError(errorElement);
+    dismiss(element: HTMLElement): void {
+        const meta = (element as ValidatedHTMLElement).__aaError;
 
-            if (element) {
-                element.removeAttribute(ATTRIBUTE_NAME_ERROR_ID);
-                element.removeAttribute(ATTRIBUTE_NAME_ERROR_MESSAGE);
+        if (meta) {
+            meta.visible = false;
+
+            this._removeErrorView(meta);
+            this._render();
+        }
+    }
+
+    toggle = (): void => {
+        this._isCollapsed = !this._isCollapsed;
+
+        if (this._isCollapsed) {
+            Object.keys(_errors).forEach(id => {
+                const meta = _errors[id];
+
+                if (meta.visible) {
+                    this.dismiss(meta.element);
+                }
+            });
+        } else {
+            Object.keys(_errors).forEach(id => {
+                _errors[id].visible = true;
+            });
+        }
+
+        this._render();
+    }
+
+    private _initUI(append: boolean): void {
+        if (!this._styles) {
+            this._styles = document.createElement('style');
+
+            this._styles.appendChild(document.createTextNode(getErrorReporterCSS()));
+
+            this._container = document.createElement('div');
+            this._expanded = document.createElement('div');
+            this._toggle = document.createElement('button');
+
+            this._container.className = 'aa-error-container';
+            this._expanded.className = 'aa-error-expanded';
+            this._toggle.className = 'aa-error-toggle';
+
+            this._container.style.display = 'none';
+            this._expanded.style.display = 'none';
+
+            this._container.appendChild(this._expanded);
+            this._container.appendChild(this._toggle);
+
+            this._toggle.addEventListener('click', this.toggle);
+        }
+
+        if (append) {
+            if (!this._styles.parentNode) {
+                this._window.document.head.appendChild(this._styles);
             }
-        }
 
-        return null;
+            this._window.document.body.appendChild(this._container!);
+        }
     }
 
-    let errorId: string;
-    const sameError = element ? (element.getAttribute(ATTRIBUTE_NAME_ERROR_MESSAGE) === message) : (errorText.innerText === message);
-
-    if (sameError && prevId) {
-        if (_lastDismissAllId > parseInt(prevId, 10)) {
-            return null;
+    private _render(): void {
+        if (this._renderTimer) {
+            return;
         }
 
-        errorId = prevId;
-    } else {
-        errorContainer.__aaDismissError(errorElement, true);
-
-        errorElement.className = 'aa-error-message' + (isRender ? ' aa-error-message_render' : '');
-        errorText.innerText = message;
-
-        errorId = ++env.lastErrorId + '';
-        const locator = `\$('[${ ATTRIBUTE_NAME_ERROR_ID }="${ errorId }"]')`;
-
-        errorLocator.innerText = locator;
-
-        errorElement.setAttribute(ATTRIBUTE_NAME_ERROR_ID, errorId);
-
-        if (element) {
-            element.setAttribute(ATTRIBUTE_NAME_ERROR_ID, errorId);
-            element.setAttribute(ATTRIBUTE_NAME_ERROR_MESSAGE, message);
-        }
-
-        console.error(`${ message }\n\n${ locator }`);
+        this._renderTimer = this._window.setTimeout(() => {
+            this._renderTimer = undefined;
+            this._reallyRender();
+        }, 0);
     }
 
-    errorText.innerText = message;
+    private _reallyRender(): void {
+        let hasVisible = false;
+        const ids = Object.keys(_errors);
 
-    const locator = `\$('[${ ATTRIBUTE_NAME_ERROR_ID }="${ errorId }"]')`;
-    errorLocator.innerText = locator;
+        ids.forEach(id => {
+            const e = _errors[id];
 
-    errorElement.setAttribute(ATTRIBUTE_NAME_ERROR_ID, errorId);
+            if (e.visible) {
+                hasVisible = true;
+            }
+        });
 
-    errorLocator.className = 'aa-error-locator' + (element ? ' aa-error-locator_available' : '');
+        this._initUI(true);
 
-    errorContainer.__aaAddError(errorId, errorElement);
+        if ((ids.length > 0) && (this._isCollapsed || !hasVisible)) {
+            this._isCollapsed = true;
+            this._showCounter(ids.length);
+        } else if (!this._isCollapsed && hasVisible) {
+            this._showExpanded();
+        } else {
+            this._hide();
+        }
+    }
 
-    _lastId = env.lastErrorId;
+    private _showCounter(count: number): void {
+        this._toggle!.innerText = `Show ${ count } accessibility error${ count !== 1 ? 's' : '' }`;
 
-    return errorId + '';
+        this._expanded!.style.display = 'none';
+        this._container!.style.display = 'flex';
+    }
+
+    private _showExpanded() {
+        this._toggle!.innerText = `Collapse errors`;
+
+        Object.keys(_errors).forEach(id => {
+            const meta = _errors[id];
+
+            if (meta.visible) {
+                if (meta.shouldRerender) {
+                    delete meta.shouldRerender;
+                    this._removeErrorView(meta);
+                }
+
+                if (!meta.rendered) {
+                    meta.rendered = this._createErrorView(meta);
+                }
+
+                this._expanded!.insertBefore(meta.rendered, this._expanded!.firstChild || null);
+            }
+        });
+
+        this._expanded!.style.display = null;
+        this._container!.style.display = 'flex';
+    }
+
+    private _hide() {
+        this._container!.style.display = 'none';
+    }
+
+    private _createErrorView(meta: ErrorMetadata): HTMLDivElement {
+        const div = this._window.document.createElement('div');
+        div.className = 'aa-error-message';
+
+        const dismiss = this._window.document.createElement('button');
+        dismiss.className = 'aa-error-dismiss';
+        dismiss.setAttribute('aria-label', `Dismiss error ${ meta.id }`);
+        dismiss.innerText = 'X';
+        dismiss.addEventListener('click', () => {
+            this.dismiss(meta.element);
+        });
+        div.appendChild(dismiss);
+
+        const text = this._window.document.createElement('span');
+        text.className = 'aa-error-text';
+        text.innerText = meta.error.message;
+        div.appendChild(text);
+
+        if (meta.locator) {
+            const locator = this._window.document.createElement('div');
+            locator.className = 'aa-error-locator';
+            locator.innerText = meta.locator;
+            div.appendChild(locator);
+        }
+
+        div.addEventListener('dblclick', () => {
+            this.dismiss(meta.element);
+        });
+
+        return div;
+    }
+
+    private _removeErrorView(meta: ErrorMetadata): void {
+        if (meta.rendered) {
+            if (meta.rendered.parentNode) {
+                meta.rendered.parentNode.removeChild(meta.rendered);
+            }
+
+            delete meta.rendered;
+        }
+    }
 }

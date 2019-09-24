@@ -4,6 +4,7 @@
  */
 
 import {
+    AbilityAttributesError,
     AssumeClass,
     ATTRIBUTE_NAME_CLASS,
     ATTRIBUTE_NAME_ERROR_ID,
@@ -12,6 +13,7 @@ import {
     AttributeSchemaClass,
     ErrorReporter
 } from './DevEnvTypes';
+import * as Errors from './Errors';
 import { AttributeSchema, ParamConstraint } from './Schema';
 import { getAttributes, isAccessibleElement } from './Utils';
 
@@ -21,7 +23,7 @@ interface HTMLElementWithValidatorId extends HTMLElement {
 
 type GetClass = (name: string) => AttributeSchemaClass | undefined;
 
-let _reportError: ErrorReporter;
+let _error: ErrorReporter;
 let _getClass: GetClass;
 let _assumeClass: AssumeClass;
 let _isBrokenIE11: boolean;
@@ -57,7 +59,7 @@ function createElementTreeWalker(doc: Document, root: Node, acceptNode: (node: N
 function validate(element: HTMLElementWithValidatorId) {
     const propsVal = element.getAttribute(ATTRIBUTE_NAME_PROPS);
     let a: AttributeSchema<any> | undefined;
-    let errorMessage: string | undefined;
+    let error: AbilityAttributesError | undefined;
 
     try {
         const className = element.getAttribute(ATTRIBUTE_NAME_CLASS);
@@ -73,7 +75,7 @@ function validate(element: HTMLElementWithValidatorId) {
                     a = Class.fromAttributes(element.tagName.toLowerCase(), getAttributes(element));
                 }
             } else if (!_ignoreUnknownClasses) {
-                errorMessage = `Unknown class '${ className }'`;
+                error = new Errors.UnknownClassError(className);
             } else {
                 return;
             }
@@ -82,12 +84,12 @@ function validate(element: HTMLElementWithValidatorId) {
             const attributes = getAttributes(element);
 
             if (isAccessibleElement(tagName, attributes)) {
-                const Class = _assumeClass(tagName, attributes, element, false);
+                const Class = _assumeClass(tagName, attributes, element);
 
                 if (Class) {
                     a = Class.fromAttributes(tagName, attributes);
                 } else {
-                    errorMessage = 'Accessible element must have accessibility class assigned.';
+                    error = new Errors.NoClassError();
                 }
             } else {
                 return;
@@ -96,17 +98,17 @@ function validate(element: HTMLElementWithValidatorId) {
             return;
         }
     } catch (e) {
-        errorMessage = e.message || 'Failed to validate element';
+        error = (e instanceof AbilityAttributesError) ? e : new Errors.ValidationFailedError();
     }
 
-    if (!errorMessage && a && a.getConstraints) {
+    if (!error && a && a.getConstraints) {
         const constraints = a.getConstraints();
 
         constraints.every(constraint => {
             if ('one' in constraint) {
                 return constraint.one.some(c => {
                     if (!checkConstraint(element, c)) {
-                        errorMessage = makeConstraintErrorMessage(c.description, constraint);
+                        error = new Errors.ConstraintNotSatisfiedError(c.description, constraint);
 
                         return false;
                     }
@@ -115,7 +117,7 @@ function validate(element: HTMLElementWithValidatorId) {
                 });
             } else {
                 if (!checkConstraint(element, constraint)) {
-                    errorMessage = makeConstraintErrorMessage(constraint.description, constraint);
+                    error = new Errors.ConstraintNotSatisfiedError(constraint.description, constraint);
 
                     return false;
                 }
@@ -125,31 +127,11 @@ function validate(element: HTMLElementWithValidatorId) {
         });
     }
 
-    _reportError(errorMessage || null, element, false);
-}
-
-function makeConstraintErrorMessage(description: string, constraint: ParamConstraint): string {
-    let errorMessage = description;
-
-    if (constraint.param || (constraint.name && constraint.value)) {
-        errorMessage += ' (';
-
-        if (constraint.param) {
-            errorMessage += `when no ${ constraint.param } specified`;
-        }
-
-        if (constraint.name && constraint.value) {
-            if (constraint.param) {
-                errorMessage += ', ';
-            }
-
-            errorMessage += `parameter '${ constraint.name }', value: '${ constraint.value }'`;
-        }
-
-        errorMessage += ')';
+    if (error) {
+        _error.report(element, error);
+    } else {
+        _error.remove(element);
     }
-
-    return errorMessage;
 }
 
 function checkConstraint(element: HTMLElement, constraint: ParamConstraint): boolean {
@@ -164,10 +146,9 @@ function checkConstraint(element: HTMLElement, constraint: ParamConstraint): boo
 
 function queryXPath(element: HTMLElement, xpath: string): boolean {
     try {
-        console.error(xpath, element, document.evaluate(xpath, element, null, XPathResult.BOOLEAN_TYPE, null).booleanValue);
         return document.evaluate(xpath, element, null, XPathResult.BOOLEAN_TYPE, null).booleanValue;
     } catch (e) {
-        _reportError(`Failed to evaluate expression: ${ xpath }, ${ e.message }`, element, false);
+        _error.report(element, new Errors.XPathExpressionFailedError(xpath, e.message));
         return true;
     }
 }
@@ -187,7 +168,7 @@ function queryJS(element: HTMLElement, funcName: string, name?: string, value?: 
 
 export function setup(
     win: Window,
-    reportError: ErrorReporter,
+    error: ErrorReporter,
     getClass: GetClass,
     enforceClasses: boolean,
     assumeClass: AssumeClass,
@@ -201,7 +182,7 @@ export function setup(
         return;
     }
 
-    _reportError = reportError;
+    _error = error;
     _getClass = getClass;
     _enforceClasses = enforceClasses;
     _assumeClass = assumeClass;
@@ -253,7 +234,7 @@ export function setup(
             _removeQueue = {};
             _validatorQueue = {};
 
-            toRemove.map(e => _reportError(null, e, false));
+            toRemove.forEach(e => _error.remove(e));
             toValidate.filter(e => win.document.contains(e)).map(validate);
         }, 100);
 

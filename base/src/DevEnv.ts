@@ -3,8 +3,17 @@
  * Licensed under the MIT License.
  */
 
-import { AssumptionSpecificity, AttributeSchemaClass, DevEnv, DevEnvSettings, WindowWithClassMap, WindowWithDevEnv } from './DevEnvTypes';
-import { createElements, reportError as reportErrorBase } from './ErrorReporter';
+import {
+    AbilityAttributesError,
+    AssumptionSpecificity,
+    AttributeSchemaClass,
+    DevEnv,
+    DevEnvSettings,
+    WindowWithClassMap,
+    WindowWithDevEnv
+} from './DevEnvTypes';
+import { ErrorReporter } from './ErrorReporter';
+import { AmbiguousAssumptionError } from './Errors';
 import { HTMLElementAttributes } from './HTML';
 import { setup as setupValidator } from './Validator';
 
@@ -22,59 +31,22 @@ export function setup(settings?: DevEnvSettings): void {
     }
 
     if (!w.__abilityAttributesDev) {
-        const els = createElements();
+        w.__abilityAttributesDev = {
+            error: new ErrorReporter(w)
+        };
 
-        if (els) {
-            w.__abilityAttributesDev = {
-                errorStyle: els.style,
-                errorContainer: els.container,
-                reportError: (message: string | null, element: HTMLElement | null, isRender: boolean): string | null => {
-                    const env = getDevEnv(w);
+        const enforceClasses = (settings && settings.enforceClasses) !== false;
+        const ignoreUnknownClasses = !!(settings && settings.ignoreUnknownClasses);
 
-                    if (env) {
-                        if (env.errorStyle.parentNode !== w.document.body) {
-                            w.document.body.appendChild(env.errorStyle);
-                        }
-
-                        if (env.errorContainer.parentNode !== w.document.body) {
-                            w.document.body.appendChild(env.errorContainer);
-                        }
-
-                        return reportErrorBase(env, message, element, isRender);
-                    }
-
-                    return null;
-                },
-                lastErrorId: 0
-            };
-
-            const enforceClasses = (settings && settings.enforceClasses) !== false;
-            const ignoreUnknownClasses = !!(settings && settings.ignoreUnknownClasses);
-
-            setupValidator(
-                w,
-                w.__abilityAttributesDev.reportError,
-                getClassByName,
-                enforceClasses,
-                assumeClass,
-                ignoreUnknownClasses
-            );
-        }
+        setupValidator(
+            w,
+            w.__abilityAttributesDev.error,
+            getClassByName,
+            enforceClasses,
+            assumeClass,
+            ignoreUnknownClasses
+        );
     }
-}
-
-export function getDevEnv(win: Window): DevEnv | undefined {
-    return (win as WindowWithDevEnv).__abilityAttributesDev;
-}
-
-export function reportError(win: Window, message: string | null, element: HTMLElement | null, isRender: boolean): string | null {
-    const env = getDevEnv(win);
-
-    if (env) {
-        return env.reportError(message, element, isRender);
-    }
-
-    return null;
 }
 
 export function addClass(name: string, Class: AttributeSchemaClass) {
@@ -108,8 +80,8 @@ interface AssumedClass {
     specificity: AssumptionSpecificity;
 }
 
-export function assumeClass(tagName: string, attributes: HTMLElementAttributes, element: HTMLElement | null,
-        isRender: boolean): AttributeSchemaClass | undefined {
+export function assumeClass(tagName: string, attributes: HTMLElementAttributes,
+        element: HTMLElement): AttributeSchemaClass | undefined {
 
     if (__DEV__ && (typeof window !== 'undefined')) {
         const win = window as WindowWithClassMap;
@@ -153,11 +125,9 @@ export function assumeClass(tagName: string, attributes: HTMLElementAttributes, 
             }
 
             if (hasEqualAssumptions) {
-                reportError(window, `Ambiguous class assumption: '${
-                        hasEqualAssumptions[0].Class.className
-                    }' and '${
-                        hasEqualAssumptions[1].Class.className
-                    }'`, element, isRender
+                reportError(
+                    new AmbiguousAssumptionError(hasEqualAssumptions[0].Class.className, hasEqualAssumptions[1].Class.className),
+                    element
                 );
 
                 return undefined;
@@ -168,4 +138,22 @@ export function assumeClass(tagName: string, attributes: HTMLElementAttributes, 
     }
 
     return undefined;
+}
+
+function getDevEnv(win: Window): DevEnv | undefined {
+    return (win as WindowWithDevEnv).__abilityAttributesDev;
+}
+
+function reportError(error: AbilityAttributesError, element: HTMLElement, win?: Window): void {
+    const w = win || (typeof window !== 'undefined' ? window : undefined);
+
+    if (!w) {
+        return;
+    }
+
+    const env = getDevEnv(w);
+
+    if (env) {
+        env.error.report(element, error);
+    }
 }

@@ -11,12 +11,21 @@ export const ATTRIBUTE_NAME_ERROR_ID = 'data-aa-error-id';
 export const ATTRIBUTE_NAME_ERROR_MESSAGE = 'data-aa-error-message';
 export const ATTRIBUTE_NAME_PROPS = 'data-aa-props';
 
-export type ErrorReporter = (message: string | null, element: HTMLElement | null, isRender: boolean) => string | null;
+export abstract class AbilityAttributesError extends Error {
+    abstract readonly code: number;
+}
+
+export abstract class ErrorReporter {
+    abstract report(element: HTMLElement, error: AbilityAttributesError): void;
+    abstract remove(element: HTMLElement): void;
+    abstract dismiss(element: HTMLElement): void;
+    abstract toggle(): void;
+}
 
 export type AssumptionSpecificity = { tag: boolean; attributes: number; };
 
-export type AssumeClass = (tagName: string, attributes: HTMLElementAttributes, element: HTMLElement | null,
-    isRender: boolean) => AttributeSchemaClass | undefined ;
+export type AssumeClass = (tagName: string, attributes: HTMLElementAttributes,
+    element: HTMLElement | null) => AttributeSchemaClass | undefined;
 
 export interface AttributeSchemaClass<P = any> {
     new (tagName: string, params?: P): AttributeSchema<P>;
@@ -26,11 +35,7 @@ export interface AttributeSchemaClass<P = any> {
 }
 
 export interface DevEnv {
-    errorStyle: HTMLStyleElement;
-    errorContainer: HTMLDivElement;
-    reportError: ErrorReporter;
-    lastErrorId: number;
-    lastDismissAllId?: number;
+    error: ErrorReporter;
 }
 
 export interface WindowWithDevEnv extends Window {
