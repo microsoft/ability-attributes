@@ -1,6 +1,6 @@
 {
   "name": "ability-attributes-generator",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "An accessibility attributes schema code generator",
   "author": "Marat Abdullin <marata@microsoft.com>",
   "license": "MIT",
@@ -28,7 +28,7 @@
   },
   "types": "./dist/index.d.ts",
   "dependencies": {
-    "ability-attributes": "^0.0.4",
+    "ability-attributes": "^0.0.5",
     "ajv": "^6.10.0",
     "commander": "^2.20.0"
   }
