@@ -1,11 +1,11 @@
 {
-  "name": "ability-attributes",
+  "name": "ability-attributes-js-constraints",
   "version": "0.0.5",
-  "description": "A base package for the accessibility attributes schema runtime",
+  "description": "A set of JavaScript constraints for the accessibility attributes schema runtime",
   "author": "Marat Abdullin <marata@microsoft.com>",
   "license": "MIT",
   "main": "./dist/index.js",
-  "module": "./dist/ability-attributes.esm.js",
+  "module": "./dist/ability-attributes-js-constraints.esm.js",
   "typings": "./dist/index.d.ts",
   "files": [
     "dist"
@@ -19,9 +19,6 @@
     "clean": "rimraf dist",
     "tslint": "tslint --project tsconfig.json -r tslint.json -r ./node_modules/tslint-microsoft-contrib --fix || true",
     "prepare": "npm run build"
-  },
-  "dependencies": {
-    "ability-attributes-js-constraints": "^0.0.5"
   },
   "devDependencies": {
     "rimraf": "^3.0.0",

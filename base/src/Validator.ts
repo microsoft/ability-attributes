@@ -11,7 +11,8 @@ import {
     ATTRIBUTE_NAME_ERROR_MESSAGE,
     ATTRIBUTE_NAME_PROPS,
     AttributeSchemaClass,
-    ErrorReporter
+    ErrorReporter,
+    JSConstraints
 } from './DevEnvTypes';
 import * as Errors from './Errors';
 import { AttributeSchema, ParamConstraint } from './Schema';
@@ -25,6 +26,7 @@ type GetClass = (name: string) => AttributeSchemaClass | undefined;
 
 let _error: ErrorReporter;
 let _getClass: GetClass;
+let _jsConstraints: JSConstraints;
 let _assumeClass: AssumeClass;
 let _isBrokenIE11: boolean;
 let _validatorQueue: { [id: string]: HTMLElementWithValidatorId } = {};
@@ -154,13 +156,10 @@ function queryXPath(element: HTMLElement, xpath: string): boolean {
 }
 
 function queryJS(element: HTMLElement, funcName: string, name?: string, value?: string | number | boolean | null): boolean {
-    // TODO: Make custom functions registry.
-    if ((funcName === 'checkIdentifiers') && (typeof value === 'string')) {
-        return value.split(/\s+/).every(id => !!document.getElementById(id));
-    }
+    const func = _jsConstraints[funcName];
 
-    if (funcName === 'notEmpty') {
-        return (typeof value === 'string' ? value : '').trim() !== '';
+    if (func) {
+        return func(element, value);
     }
 
     return false;
@@ -170,6 +169,7 @@ export function setup(
     win: Window,
     error: ErrorReporter,
     getClass: GetClass,
+    jsConstraints: JSConstraints,
     enforceClasses: boolean,
     assumeClass: AssumeClass,
     ignoreUnknownClasses: boolean
@@ -184,6 +184,7 @@ export function setup(
 
     _error = error;
     _getClass = getClass;
+    _jsConstraints = jsConstraints;
     _enforceClasses = enforceClasses;
     _assumeClass = assumeClass;
     _ignoreUnknownClasses = ignoreUnknownClasses;

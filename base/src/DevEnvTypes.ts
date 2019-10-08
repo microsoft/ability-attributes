@@ -3,6 +3,8 @@
  * Licensed under the MIT License.
  */
 
+import { JSConstraintFunction } from 'ability-attributes-js-constraints';
+
 import { HTMLElementAttributes } from './HTML';
 import { AttributeSchema } from './Schema';
 
@@ -34,8 +36,15 @@ export interface AttributeSchemaClass<P = any> {
     assume?: (tagName: string, attributes: HTMLElementAttributes) => AssumptionSpecificity | undefined;
 }
 
+export { JSConstraintFunction };
+
+export interface JSConstraints {
+    [funcName: string]: JSConstraintFunction;
+}
+
 export interface DevEnv {
     error: ErrorReporter;
+    jsConstraints: JSConstraints;
 }
 
 export interface WindowWithDevEnv extends Window {

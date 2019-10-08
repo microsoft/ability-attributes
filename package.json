@@ -6,6 +6,6 @@
     "clean": "lerna exec -- npm run clean && lerna clean --yes"
   },
   "devDependencies": {
-    "lerna": "^3.16.4"
+    "lerna": "^3.16.5"
   }
 }

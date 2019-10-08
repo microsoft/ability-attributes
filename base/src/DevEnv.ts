@@ -3,12 +3,16 @@
  * Licensed under the MIT License.
  */
 
+import * as Constraints from 'ability-attributes-js-constraints';
+
 import {
     AbilityAttributesError,
     AssumptionSpecificity,
     AttributeSchemaClass,
     DevEnv,
     DevEnvSettings,
+    JSConstraintFunction,
+    JSConstraints,
     WindowWithClassMap,
     WindowWithDevEnv
 } from './DevEnvTypes';
@@ -32,7 +36,8 @@ export function setup(settings?: DevEnvSettings): void {
 
     if (!w.__abilityAttributesDev) {
         w.__abilityAttributesDev = {
-            error: new ErrorReporter(w)
+            error: new ErrorReporter(w),
+            jsConstraints: {}
         };
 
         const enforceClasses = (settings && settings.enforceClasses) !== false;
@@ -42,10 +47,19 @@ export function setup(settings?: DevEnvSettings): void {
             w,
             w.__abilityAttributesDev.error,
             getClassByName,
+            w.__abilityAttributesDev.jsConstraints,
             enforceClasses,
             assumeClass,
             ignoreUnknownClasses
         );
+
+        Object.keys(Constraints).forEach(name => {
+            const c = (Constraints as JSConstraints)[name];
+
+            if ((typeof c === 'function') && (typeof c.schemaName === 'string')) {
+                addConstraint(c.schemaName, c);
+            }
+        });
     }
 }
 
@@ -73,6 +87,19 @@ export function getClassByName(name: string): AttributeSchemaClass | undefined {
     }
 
     return undefined;
+}
+
+export function addConstraint(name: string, func: JSConstraintFunction): void {
+    if (__DEV__ && (typeof window !== 'undefined')) {
+        const env = getDevEnv(window);
+
+        if (env) {
+            env.jsConstraints[name] = func;
+        } else {
+            console.error(`Cannot add ability attributes constraint, before DevEnv.setup() is called`);
+        }
+    }
+
 }
 
 interface AssumedClass {
