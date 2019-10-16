@@ -1,6 +1,6 @@
 {
   "name": "ability-attributes",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "A base package for the accessibility attributes schema runtime",
   "author": "Marat Abdullin <marata@microsoft.com>",
   "license": "MIT",
@@ -21,7 +21,7 @@
     "prepare": "npm run build"
   },
   "dependencies": {
-    "ability-attributes-js-constraints": "^0.0.6"
+    "ability-attributes-js-constraints": "^0.0.7"
   },
   "devDependencies": {
     "rimraf": "^3.0.0",
