@@ -214,7 +214,13 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
 
                     for (let value of values) {
                         if (value.parameter === params[paramName]) {
-                            attrs[a.name] = (typeof value.attribute === 'boolean') ? '' : value.attribute;
+                            if (typeof value.attribute === 'boolean') {
+                                if (value.attribute) {
+                                    attrs[a.name] = '';
+                                }
+                            } else {
+                                attrs[a.name] = value.attribute;
+                            }
                             illegalValue = false;
                             break;
                         }
