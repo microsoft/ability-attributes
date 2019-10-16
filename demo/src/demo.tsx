@@ -7,7 +7,7 @@ import { DevEnv, Schema } from 'ability-attributes';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 
-import { Button, Checkbox } from './schema';
+import { Button, Checkbox, PopupButton } from './schema';
 
 DevEnv.setup();
 
@@ -27,7 +27,7 @@ ReactDOM.render(
             <input
                 type='checkbox'
                 aria-label='Lalal'
-                checked
+                defaultChecked
                 data-aa-class='Checkbox'
             />
             Lalal
@@ -36,6 +36,9 @@ ReactDOM.render(
                 data-aa-class='Button'
                 value='Piu'
             />
+
+            <button aria-haspopup='true' data-aa-class='PopupButton'>Popup</button>
+            <div { ...getAccessibilityAttributes('div', PopupButton, { disabled: true }) }>Popup2</div>
         </div>
 
         <div { ...getAccessibilityAttributes('div', Checkbox, { checked: true }) }>

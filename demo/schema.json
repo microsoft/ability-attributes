@@ -393,7 +393,8 @@
                         {
                             "name": "role",
                             "value": "button",
-                            "optional": true
+                            "optional": true,
+                            "overridable": "role"
                         }
                     ]
                 },
@@ -422,12 +423,14 @@
                                 "button",
                                 "submit",
                                 "reset"
-                            ]
+                            ],
+                            "overridable": "type"
                         },
                         {
                             "name": "role",
                             "value": "button",
-                            "optional": true
+                            "optional": true,
+                            "overridable": "role"
                         }
                     ]
                 },
@@ -451,7 +454,8 @@
                     "attributes": [
                         {
                             "name": "role",
-                            "value": "button"
+                            "value": "button",
+                            "overridable": "role"
                         },
                         {
                             "ref": "$tabindex"
@@ -465,9 +469,35 @@
             "parameters": [
                 {
                     "overrides": "hasPopup",
-                    "ref": "$hasPopup"
+                    "ref": null
                 }
-            ]
+            ],
+            "tags": {
+                "<button>": {
+                    "attributes": [
+                        {
+                            "name": "aria-haspopup",
+                            "value": "true"
+                        }
+                    ]
+                },
+                "<input>": {
+                    "attributes": [
+                        {
+                            "name": "aria-haspopup",
+                            "value": "true"
+                        }
+                    ]
+                },
+                "<div>, <span>": {
+                    "attributes": [
+                        {
+                            "name": "aria-haspopup",
+                            "value": "true"
+                        }
+                    ]
+                }
+            }
         },
         "Checkbox": {
             "inherits": "Button",
@@ -488,12 +518,14 @@
                     "attributes": [
                         {
                             "name": "type",
-                            "value": "checkbox"
+                            "value": "checkbox",
+                            "overrides": "type"
                         },
                         {
                             "name": "role",
                             "value": "checkbox",
-                            "optional": true
+                            "optional": true,
+                            "overrides": "role"
                         }
                     ]
                 },
@@ -507,10 +539,8 @@
                     "attributes": [
                         {
                             "name": "role",
-                            "value": "checkbox"
-                        },
-                        {
-                            "ref": "$tabindex"
+                            "value": "checkbox",
+                            "overrides": "role"
                         }
                     ]
                 }

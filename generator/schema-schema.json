@@ -33,6 +33,42 @@
       ],
       "type": "object"
     },
+    "AttributeInTagEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "overridable": {
+          "$ref": "ability-attributes-schema#/definitions/ParameterOverridable"
+        },
+        "overrides": {
+          "$ref": "ability-attributes-schema#/definitions/ParameterOverridable"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
     "AttributeInAssumption": {
       "additionalProperties": false,
       "properties": {
@@ -89,7 +125,13 @@
       "additionalProperties": false,
       "properties": {
         "ref": {
-          "type": "string"
+          "type": ["string", "null"]
+        },
+        "overridable": {
+          "$ref": "ability-attributes-schema#/definitions/ParameterOverridable"
+        },
+        "overrides": {
+          "$ref": "ability-attributes-schema#/definitions/ParameterOverridable"
         }
       },
       "required": [
@@ -418,7 +460,7 @@
           "$ref": "ability-attributes-schema#/definitions/ParameterOptional"
         },
         "ref": {
-          "type": "string"
+          "type": ["string", "null"]
         },
         "overridable": {
           "$ref": "ability-attributes-schema#/definitions/ParameterOverridable"
@@ -520,7 +562,7 @@
           "items": {
             "anyOf": [
               {
-                "$ref": "ability-attributes-schema#/definitions/AttributeEntry"
+                "$ref": "ability-attributes-schema#/definitions/AttributeInTagEntry"
               },
               {
                 "additionalProperties": false,
@@ -530,6 +572,12 @@
                       "$ref": "ability-attributes-schema#/definitions/AttributeEntry"
                     },
                     "type": "array"
+                  },
+                  "overridable": {
+                    "$ref": "ability-attributes-schema#/definitions/ParameterOverridable"
+                  },
+                  "overrides": {
+                    "$ref": "ability-attributes-schema#/definitions/ParameterOverridable"
                   }
                 },
                 "required": [

@@ -24,7 +24,7 @@ interface ParameterRel {
 }
 
 interface ParameterInClassRef {
-    ref: string;
+    ref: string | null;
     optional?: boolean | Schema.Constraint | Schema.ConstraintRef;
     overridable?: string;
     overrides?: string;
@@ -71,8 +71,15 @@ interface Attributes {
     [key: string]: Attribute;
 }
 
+type AttributeInTag = (AttributeEntry | { one: AttributeEntry[]; }) & {
+    overridable?: string;
+    overrides?: string;
+};
+
 interface AttributeRef {
     ref: string;
+    overridable?: string;
+    overrides?: string;
 }
 
 interface Constraints {
@@ -81,7 +88,7 @@ interface Constraints {
 
 interface Tag {
     constraints?: (Schema.Constraint | Schema.ConstraintRef)[];
-    attributes?: (Attribute | AttributeRef)[];
+    attributes?: (AttributeInTag | AttributeRef)[];
     parameters?: { [rel: string]: ParameterInClass | ParameterInClassRef };
 }
 
@@ -231,6 +238,7 @@ export class CodeGenerator {
         return classes;
 
         interface Overridable {
+            ref?: string | null;
             rel?: string;
             overridable?: string;
             overrides?: string;
@@ -335,10 +343,10 @@ export class CodeGenerator {
                             retTags[tagNames].parameters = dTags.parameters;
                         }
 
+                        const aAttrs = retTags[tagNames].attributes;
+
                         if (dTags.attributes) {
-                            // If the attributes are provided, just replace the old ones with the new ones,
-                            // don't do anything fancy so far.
-                            retTags[tagNames].attributes = dTags.attributes;
+                            retTags[tagNames].attributes = override(aAttrs, dTags.attributes) as typeof dTags.attributes;
                         }
                     } else {
                         retTags[tagNames] = dTags;
@@ -390,7 +398,7 @@ export class CodeGenerator {
                     }
                 }
 
-                return overriden;
+                return overriden ? overriden.filter(o => o.ref !== null) : undefined;
             }
         }
     }
@@ -824,6 +832,10 @@ ${
         let param: ParameterInClass;
 
         if ('ref' in p) {
+            if (p.ref === null) {
+                throw new Error(`Parameter reference can be null only if it overrides the base class parameter in class '${ className }'`);
+            }
+
             const ref = this._parameters[p.ref];
 
             if (!ref) {
