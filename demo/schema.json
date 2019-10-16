@@ -199,11 +199,63 @@
             "name": "checked",
             "attributes": [
                 {
+                    "name": "checked",
+                    "value": [
+                        {
+                            "parameter": true,
+                            "attribute": true
+                        },
+                        {
+                            "parameter": false,
+                            "attribute": false
+                        }
+                    ]
+                },
+                {
                     "name": "aria-checked",
                     "value": [
-                        { "parameter": true, "attribute": "true" },
-                        { "parameter": false, "attribute": false }
+                        {
+                            "parameter": true,
+                            "attribute": "true"
+                        },
+                        {
+                            "parameter": false,
+                            "attribute": "false"
+                        }
+                    ],
+                    "optional": true
+                }
+            ]
+        },
+        "$checked-custom": {
+            "name": "checked",
+            "attributes": [
+                {
+                    "name": "aria-checked",
+                    "value": [
+                        {
+                            "parameter": true,
+                            "attribute": "true"
+                        },
+                        {
+                            "parameter": false,
+                            "attribute": false
+                        }
                     ]
+                },
+                {
+                    "name": "checked",
+                    "value": [
+                        {
+                            "parameter": true,
+                            "attribute": true
+                        },
+                        {
+                            "parameter": false,
+                            "attribute": false
+                        }
+                    ],
+                    "optional": true
                 }
             ]
         }
@@ -311,7 +363,8 @@
                 },
                 {
                     "ref": "$hasPopup",
-                    "optional": true
+                    "optional": true,
+                    "overridable": "hasPopup"
                 },
                 {
                     "ref": "$isExpanded",
@@ -407,41 +460,50 @@
                 }
             }
         },
-        "Checkbox": {
-            "constraints": [
-                {
-                    "ref": "$atomic"
-                }
-            ],
+        "PopupButton": {
+            "inherits": "Button",
             "parameters": [
                 {
-                    "ref": "$label",
-                    "optional": {
-                        "ref": "$hasTitleOrText"
-                    }
-                },
+                    "overrides": "hasPopup",
+                    "ref": "$hasPopup"
+                }
+            ]
+        },
+        "Checkbox": {
+            "inherits": "Button",
+            "parameters": [
                 {
-                    "ref": "$checked"
-                },
-                {
-                    "ref": "$describedBy",
-                    "optional": true
-                },
-                {
-                    "ref": "$tabbable",
-                    "optional": true
+                    "rel": "@checked"
                 }
             ],
             "tags": {
+                "<button>": null,
                 "<input>": {
+                    "parameters": {
+                        "@checked": {
+                            "ref": "$checked",
+                            "optional": true
+                        }
+                    },
                     "attributes": [
                         {
                             "name": "type",
                             "value": "checkbox"
+                        },
+                        {
+                            "name": "role",
+                            "value": "checkbox",
+                            "optional": true
                         }
                     ]
                 },
                 "<div>, <span>": {
+                    "parameters": {
+                        "@checked": {
+                            "ref": "$checked-custom",
+                            "optional": true
+                        }
+                    },
                     "attributes": [
                         {
                             "name": "role",

@@ -11,17 +11,23 @@ import { Schema } from 'ability-attributes';
 
 interface ParameterInClassEntry extends Schema.ParameterEntry {
     optional?: boolean | Schema.Constraint | Schema.ConstraintRef;
+    overridable?: string;
+    overrides?: string;
 }
 
 type Parameter = Schema.ParameterEntry | { one: Schema.ParameterEntry[]; };
 
 interface ParameterRel {
     rel: string;
+    overridable?: string;
+    overrides?: string;
 }
 
 interface ParameterInClassRef {
     ref: string;
     optional?: boolean | Schema.Constraint | Schema.ConstraintRef;
+    overridable?: string;
+    overrides?: string;
 }
 
 type ParameterInClass =
@@ -29,6 +35,8 @@ type ParameterInClass =
     {
         one: Schema.ParameterEntry[];
         optional?: boolean | Schema.Constraint | Schema.ConstraintRef;
+        overridable?: string;
+        overrides?: string;
     };
 
 interface Parameters {
@@ -77,15 +85,27 @@ interface Tag {
     parameters?: { [rel: string]: ParameterInClass | ParameterInClassRef };
 }
 
-interface Class {
+interface SchemaClass {
+    inherits?: string;
+    assumptions?: Schema.ClassAssumption[];
+    constraints?: (Schema.Constraint | Schema.ConstraintRef)[];
+    parameters?: (ParameterInClass | ParameterInClassRef | ParameterRel)[];
+    tags?: { [tag: string]: Tag | null };
+}
+
+interface ProcessedClass {
     assumptions?: Schema.ClassAssumption[];
     constraints?: (Schema.Constraint | Schema.ConstraintRef)[];
     parameters?: (ParameterInClass | ParameterInClassRef | ParameterRel)[];
     tags: { [tag: string]: Tag };
 }
 
-interface Classes {
-    [name: string]: Class;
+interface SchemaClasses {
+    [name: string]: SchemaClass;
+}
+
+interface ProcessedClasses {
+    [name: string]: ProcessedClass;
 }
 
 interface Schema {
@@ -94,7 +114,7 @@ interface Schema {
     constraints?: Constraints;
     parameters?: Parameters;
     attributes?: Attributes;
-    classes: Classes;
+    classes: SchemaClasses;
 }
 
 //const paramNameRegexp = /^[a-z_][a-z0-9_]*$/i;
@@ -121,24 +141,25 @@ function formatError(error: Ajv.ErrorObject): string {
 
 export class CodeGenerator {
     private _schemaFilename: string;
-    private _schema: Schema;
     private _constraints: Constraints;
     private _parameters: Parameters;
     private _attributes: Attributes;
     private _devCondition: string;
+    private _classes: ProcessedClasses;
 
     constructor(schema: string, devCondition?: string) {
         this._schemaFilename = schema;
-        this._schema = JSON.parse(fs.readFileSync(schema).toString()) as Schema;
-        this._validate();
-        this._constraints = this._schema.constraints || {};
-        this._parameters = this._schema.parameters || {};
-        this._attributes = this._schema.attributes || {};
+        const parsedSchema = JSON.parse(fs.readFileSync(schema).toString()) as Schema;
+        this._validate(parsedSchema);
+        this._classes = this._processInheritance(parsedSchema);
+        this._constraints = parsedSchema.constraints || {};
+        this._parameters = parsedSchema.parameters || {};
+        this._attributes = parsedSchema.attributes || {};
         this._devCondition = devCondition || `process.env.NODE_ENV !== 'production'`;
     }
 
-    private _validate(): void {
-        if (!validateSchema(this._schema)) {
+    private _validate(schema: Schema): void {
+        if (!validateSchema(schema)) {
             const errors: { [message: string]: boolean } = {};
 
             throw new Error(`${ this._schemaFilename }:\n\n${ validateSchema.errors && validateSchema.errors.length
@@ -147,9 +168,235 @@ export class CodeGenerator {
         }
     }
 
+    private _processInheritance(schema: Schema): ProcessedClasses {
+        const classes: ProcessedClasses = {};
+        const self = this;
+
+        for (let className of Object.keys(schema.classes)) {
+            if (className in classes) {
+                continue;
+            }
+
+            const cls = schema.classes[className];
+
+            let c = cls;
+            let lastClass = className;
+            const chain: string[] = [className];
+
+            while (c.inherits) {
+                const prevClass = lastClass;
+
+                lastClass = c.inherits;
+
+                chain.unshift(lastClass);
+
+                if (lastClass === className) {
+                    throw new Error(`Circular class inheritance '${ chain.join(' -> ') }'`);
+                }
+
+                c = schema.classes[lastClass];
+
+                if (!c) {
+                    throw new Error(`Unknown parent class '${ lastClass }' in class '${ prevClass }'`);
+                }
+            }
+
+            for (let i = 0; i < chain.length; i++) {
+                const n = chain[i];
+
+                if (classes[n]) {
+                    continue;
+                }
+
+                if (i === 0) {
+                    classes[n] = convert(n, schema.classes[n]);
+                } else {
+                    const n2 = chain[i - 1];
+                    classes[n] = inherit(n2, classes[n2], n, schema.classes[n]);
+                }
+            }
+        }
+
+        for (let className of Object.keys(classes)) {
+            const cls = classes[className];
+
+            if (cls.parameters) {
+                for (let param of cls.parameters) {
+                    delete param.overridable;
+                    delete param.overrides;
+                }
+            }
+        }
+
+        return classes;
+
+        interface Overridable {
+            rel?: string;
+            overridable?: string;
+            overrides?: string;
+        }
+
+        function convert(className: string, cls: SchemaClass): ProcessedClass {
+            if (!cls.tags) {
+                throw new Error(`No tags specified in '${ className }' class`);
+            }
+
+            return cls as ProcessedClass;
+        }
+
+        function inherit(ancestorName: string, ancestor: ProcessedClass, descendantName: string, descendant: SchemaClass): ProcessedClass {
+            const ret: ProcessedClass = JSON.parse(JSON.stringify(ancestor));
+
+            // We do not inherit assumptions.
+            if (descendant.assumptions) {
+                ret.assumptions = descendant.assumptions;
+            } else {
+                delete ret.assumptions;
+            }
+
+            const retTags = ret.tags || {};
+            const descendantTags = descendant.tags || {};
+            const ancestorTagNames: { [tag: string]: string } = {};
+            let overridableRels: { [rel: string]: string } = {};
+
+            for (let tags of Object.keys(retTags)) {
+                for (let tag of self._parseTagNames(ancestorName, tags)) {
+                    ancestorTagNames[tag] = tags;
+                }
+            }
+
+            for (let tags of Object.keys(descendantTags)) {
+                for (let tag of self._parseTagNames(ancestorName, tags)) {
+                    const aTags = ancestorTagNames[tag];
+
+                    if ((tag !== undefined) && (tags !== aTags)) {
+                        throw new Error(
+                            `A name of overriding tag declaration should match the overriden declaration, '${
+                                tags
+                            }' in class '${
+                                descendantName
+                            }' != '${
+                                aTags
+                            }' in class ${
+                                ancestorName
+                            }`
+                        );
+                    }
+                }
+            }
+
+            if (ret.parameters || descendant.parameters) {
+                ret.parameters = override(ret.parameters, descendant.parameters) as typeof ret.parameters;
+            }
+
+            for (let tagNames of Object.keys(descendantTags)) {
+                const dTags = descendantTags[tagNames];
+
+                if (dTags === null) {
+                    if (retTags[tagNames]) {
+                        delete retTags[tagNames];
+                    } else {
+                        throw new Error(
+                            `Parent class '${
+                                ancestorName
+                            }' does not define ${
+                                tagNames
+                            } nullified in class ${
+                                descendantName
+                            }`
+                        );
+                    }
+                } else {
+                    if (tagNames in retTags) {
+                        if (dTags.constraints) {
+                            // If the constraints are provided, just replace the old ones with the new ones,
+                            // don't do anything fancy so far.
+                            retTags[tagNames].constraints = dTags.constraints;
+                        }
+
+                        const aParams = retTags[tagNames].parameters;
+
+                        if (aParams && dTags.parameters) {
+                            for (let rel of Object.keys(dTags.parameters)) {
+                                if (aParams[rel] && !overridableRels[rel]) {
+                                    throw new Error(
+                                        `Class '${
+                                            descendantName
+                                        }' overrides non-overridable relative parameter '${
+                                            rel
+                                        }' in '${
+                                            tagNames
+                                        }'`);
+                                }
+
+                                aParams[rel] = dTags.parameters[rel];
+                            }
+                        } else if (!aParams && dTags.parameters) {
+                            retTags[tagNames].parameters = dTags.parameters;
+                        }
+
+                        if (dTags.attributes) {
+                            // If the attributes are provided, just replace the old ones with the new ones,
+                            // don't do anything fancy so far.
+                            retTags[tagNames].attributes = dTags.attributes;
+                        }
+                    } else {
+                        retTags[tagNames] = dTags;
+                    }
+                }
+            }
+
+            return ret;
+
+            type Overridables = Overridable[] | undefined;
+
+            function override(a: Overridables, d: Overridables): Overridables {
+                const overriden: Overridables = a ? JSON.parse(JSON.stringify(a)) : [];
+
+                const overridables: {
+                    [name: string]: {
+                        index: number;
+                        overridable: Overridable;
+                    }
+                } = {};
+
+                if (a) {
+                    for (let index = 0; index < a.length; index++) {
+                        const overridable = a[index];
+
+                        if (overridable.overridable) {
+                            overridables[overridable.overridable] = { index, overridable };
+
+                            if (overridable.rel) {
+                                overridableRels[overridable.rel] = overridable.overridable;
+                            }
+                        }
+                    }
+                }
+
+                if (d) {
+                    for (let overridable of d) {
+                        if (overridable.overrides) {
+                            const p = overridables[overridable.overrides];
+
+                            if (!p) {
+                                throw new Error(`Overridable '${ overridable.overrides }' does not exist in class '${ ancestorName }'`);
+                            }
+
+                            overriden!!!.splice(p.index, 1, overridable);
+                        } else {
+                            overriden!!!.push(overridable);
+                        }
+                    }
+                }
+
+                return overriden;
+            }
+        }
+    }
+
     generate(): string {
         const code: string[] = [];
-        const classes: { [name: string]: true } = {};
 
         code.push(`/* tslint:disable */
 /* eslint-disable */
@@ -160,25 +407,19 @@ import {
     Schema
 } from 'ability-attributes';`);
 
-        for (let className of Object.keys(this._schema.classes)) {
-            if (className in classes) {
-                throw new Error(`Duplicate class '${ className }'`);
-            }
-
-            classes[className] = true;
-
-            code.push(this._generateClass(className, this._schema.classes[className]));
+        for (let className of Object.keys(this._classes)) {
+            code.push(this._generateClass(className, this._classes[className]));
         }
 
         code.push(`if (${ this._devCondition }) {
 ${
-    Object.keys(this._schema.classes).map(c => `    DevEnv.addClass('${ c }', ${ c });`).join('\n')
+    Object.keys(this._classes).map(c => `    DevEnv.addClass('${ c }', ${ c });`).join('\n')
 }\n}`);
 
         return code.join('\n\n');
     }
 
-    private _generateClass(className: string, cls: Class): string {
+    private _generateClass(className: string, cls: ProcessedClass): string {
         const assumptions: Schema.ClassAssumption[] = [];
         const classConstraints: Schema.Constraint[] = [];
         const tagConstraints: Schema.TagConstraints = {};

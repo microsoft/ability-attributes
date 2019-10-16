@@ -27,7 +27,7 @@ ReactDOM.render(
             <input
                 type='checkbox'
                 aria-label='Lalal'
-                aria-checked='true'
+                checked
                 data-aa-class='Checkbox'
             />
             Lalal

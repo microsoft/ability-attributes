@@ -57,7 +57,7 @@ export function setup(settings?: DevEnvSettings): void {
             const c = (Constraints as JSConstraints)[name];
 
             if ((typeof c === 'function') && (typeof c.schemaName === 'string')) {
-                addConstraint(c.schemaName, c);
+                addConstraint(c);
             }
         });
     }
@@ -89,12 +89,16 @@ export function getClassByName(name: string): AttributeSchemaClass | undefined {
     return undefined;
 }
 
-export function addConstraint(name: string, func: JSConstraintFunction): void {
+export function addConstraint(func: JSConstraintFunction): void {
     if (__DEV__ && (typeof window !== 'undefined')) {
         const env = getDevEnv(window);
 
         if (env) {
-            env.jsConstraints[name] = func;
+            if ((typeof func === 'function') && (typeof func.schemaName === 'string')) {
+                env.jsConstraints[func.schemaName] = func;
+            } else {
+                console.error(`Invalid constraint function`);
+            }
         } else {
             console.error(`Cannot add ability attributes constraint, before DevEnv.setup() is called`);
         }
