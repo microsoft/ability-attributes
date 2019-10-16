@@ -77,7 +77,7 @@ type AttributeInTag = (AttributeEntry | { one: AttributeEntry[]; }) & {
 };
 
 interface AttributeRef {
-    ref: string;
+    ref: string | null;
     overridable?: string;
     overrides?: string;
 }
@@ -497,6 +497,16 @@ ${
                     let attr: Attribute;
 
                     if ('ref' in a) {
+                        if (a.ref === null) {
+                            throw new Error(
+                                `Attribute reference can be null only if it overrides the base class attribute in '${
+                                    tagsName
+                                }' in class '${
+                                    className
+                                }'`
+                            );
+                        }
+
                         attr = this._attributes[a.ref];
 
                         if (!attr) {
