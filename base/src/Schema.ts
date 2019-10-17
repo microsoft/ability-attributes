@@ -11,7 +11,7 @@ export { AssumptionSpecificity, AttributeSchemaClass };
 
 export interface ParameterValue {
     parameter: string | number | boolean | null;
-    attribute: string | boolean;
+    attribute: string | boolean | (string | boolean)[];
 }
 
 export interface AttributeInParameter {
@@ -214,12 +214,14 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
 
                     for (let value of values) {
                         if (value.parameter === params[paramName]) {
-                            if (typeof value.attribute === 'boolean') {
-                                if (value.attribute) {
+                            const aVal = typeof value.attribute === 'object' ? value.attribute[0] : value.attribute;
+
+                            if (typeof aVal === 'boolean') {
+                                if (aVal) {
                                     attrs[a.name] = '';
                                 }
                             } else {
-                                attrs[a.name] = value.attribute;
+                                attrs[a.name] = aVal;
                             }
                             illegalValue = false;
                             break;
@@ -303,12 +305,28 @@ export abstract class AttributeSchema<P extends { [name: string]: any }> {
                         let illegalValue = true;
 
                         for (let value of a.value) {
-                            const expected = value.attribute;
                             const attrVal = attributes[a.name];
+                            const eVal = value.attribute;
+                            let expectedBool: boolean | undefined;
+                            let expectedStr: string[] = [];
 
-                            const valueMatched = (!a.optional && (expected === false) && (attrVal === undefined)) ||
-                                ((expected === true) && ((attrVal === '') || (attrVal === attrName))) ||
-                                (expected === attrVal);
+                            if (typeof eVal === 'object') {
+                                for (let v of eVal) {
+                                    if (typeof v === 'string') {
+                                        expectedStr.push(v);
+                                    } else {
+                                        expectedBool = v;
+                                    }
+                                }
+                            } else if (typeof eVal === 'string') {
+                                expectedStr.push(eVal);
+                            } else {
+                                expectedBool = eVal;
+                            }
+
+                            const valueMatched = (!a.optional && (expectedBool === false) && (attrVal === undefined)) ||
+                                ((expectedBool === true) && ((attrVal === '') || (attrVal === attrName))) ||
+                                (expectedStr.indexOf(attrVal) >= 0);
 
                             if (valueMatched || (paramVal === value.parameter)) {
                                 if (__DEV__ && (paramVal !== undefined) && (paramVal !== value.parameter)) {

@@ -507,9 +507,22 @@
       "additionalProperties": false,
       "properties": {
         "attribute": {
-          "type": [
-            "string",
-            "boolean"
+          "anyOf": [
+            {
+              "type": [
+                "string",
+                "boolean"
+              ]
+            },
+            {
+              "items": {
+                "type": [
+                  "string",
+                  "boolean"
+                ]
+              },
+              "type": "array"
+            }
           ]
         },
         "parameter": {

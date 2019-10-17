@@ -800,6 +800,41 @@ ${
                 );
             }
 
+            if (a.value) {
+                const attributeValues: { [value: string]: string } = {};
+
+                for (let v of a.value) {
+                    const attrVals = typeof v.attribute === 'object' ? v.attribute : [v.attribute];
+                    let booleanValue: boolean | undefined;
+
+                    for (let attrVal of attrVals) {
+                        const attrValKey = `${ typeof attrVal }-${ attrVal }`;
+
+                        if (attrValKey in attributeValues) {
+                            throw new Error(
+                                `Duplicate value '${ attrVal }' in attribute '${ a.name }' set by parameter '${
+                                    param.name
+                                }' ${ tagsName ? `in '${ tagsName }' ` : '' }in class '${ className }'`
+                            );
+                        } else {
+                            attributeValues[attrValKey] = a.name;
+                        }
+
+                        if (typeof attrVal === 'boolean') {
+                            if ((booleanValue !== undefined) && (booleanValue !== attrVal)) {
+                                throw new Error(
+                                    `Attribute value cannot be both true and false in attribute '${ a.name }' set by parameter '${
+                                        param.name
+                                    }' ${ tagsName ? `in '${ tagsName }' ` : '' }in class '${ className }'`
+                                );
+                            }
+
+                            booleanValue = attrVal;
+                        }
+                    }
+                }
+            }
+
             const { constraints, ...a2 } = a;
 
             attrToParam[a.name] = param.name;
