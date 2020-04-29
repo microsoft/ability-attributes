@@ -63,6 +63,8 @@ export class ErrorReporter extends ErrorReporterBase {
                 meta.error.message = error.message;
                 delete _errors[meta.id];
                 _errors[meta.id] = meta;
+            } else {
+                return;
             }
         } else {
             meta = (element as ValidatedHTMLElement).__aaError = {
@@ -132,6 +134,10 @@ export class ErrorReporter extends ErrorReporterBase {
         }
 
         this._render();
+    }
+
+    isInternal(element: HTMLElement): boolean {
+        return this._container ? this._container.contains(element) : false;
     }
 
     private _initUI(append: boolean): void {
@@ -228,7 +234,7 @@ export class ErrorReporter extends ErrorReporterBase {
             }
         });
 
-        this._expanded!.style.display = null;
+        this._expanded!.style.display = '';
         this._container!.style.display = 'flex';
     }
 

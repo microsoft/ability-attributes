@@ -240,6 +240,10 @@ export function setup(
         }, 100);
 
         function lookUp(node: Node): void {
+            if (_error.isInternal(node as HTMLElement)) {
+                return;
+            }
+
             for (let n: Node | null = node; n; n = n.parentNode) {
                 acceptNode(n, false);
             }
@@ -261,6 +265,10 @@ export function setup(
             const element = node as HTMLElementWithValidatorId;
 
             if (element.getAttribute) {
+                if (_error.isInternal(element)) {
+                    return NodeFilter.FILTER_REJECT;
+                }
+
                 if (!element.__aaValidatorId) {
                     element.__aaValidatorId = 'aa-' + ++_lastValidatorId;
                 }

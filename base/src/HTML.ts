@@ -12,7 +12,6 @@ export const AccessibleElements = {
     area: true,
     article: true,
     aside: true,
-    body: true,
     button: true,
     datalist: true,
     details: true,

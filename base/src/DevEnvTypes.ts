@@ -22,6 +22,7 @@ export abstract class ErrorReporter {
     abstract remove(element: HTMLElement): void;
     abstract dismiss(element: HTMLElement): void;
     abstract toggle(): void;
+    abstract isInternal(element: HTMLElement): boolean;
 }
 
 export type AssumptionSpecificity = { tag: boolean; attributes: number; };
