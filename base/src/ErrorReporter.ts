@@ -151,6 +151,8 @@ export class ErrorReporter extends ErrorReporterBase {
             this._container.style.display = 'none';
             this._expanded.style.display = 'none';
 
+            this._container.setAttribute('role', 'complementary');
+
             this._container.appendChild(this._expanded);
             this._container.appendChild(this._toggle);
 
@@ -228,7 +230,7 @@ export class ErrorReporter extends ErrorReporterBase {
             }
         });
 
-        this._expanded!.style.display = null;
+        this._expanded!.style.display = '';
         this._container!.style.display = 'flex';
     }
 

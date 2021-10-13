@@ -11,7 +11,9 @@ import {
     ATTRIBUTE_NAME_ERROR_MESSAGE,
     ATTRIBUTE_NAME_PROPS,
     AttributeSchemaClass,
+    ERROR_CONTAINER_SELECTOR,
     ErrorReporter,
+    ExternalValidator,
     JSConstraints
 } from './DevEnvTypes';
 import * as Errors from './Errors';
@@ -172,7 +174,8 @@ export function setup(
     jsConstraints: JSConstraints,
     enforceClasses: boolean,
     assumeClass: AssumeClass,
-    ignoreUnknownClasses: boolean
+    ignoreUnknownClasses: boolean,
+    externalValidators: ExternalValidator[]
 ) {
     if (!__DEV__) {
         return;
@@ -199,6 +202,18 @@ export function setup(
 
             if ((attributeName !== null) &&
                     ((attributeName === ATTRIBUTE_NAME_ERROR_ID) || (attributeName === ATTRIBUTE_NAME_ERROR_MESSAGE))) {
+                continue;
+            }
+
+            if ((mutation.target as HTMLElement).closest(ERROR_CONTAINER_SELECTOR)) {
+                continue;
+            }
+
+            if (mutation.removedNodes && mutation.removedNodes.length === 1 && (mutation.removedNodes[0] as HTMLElement).closest && (mutation.removedNodes[0] as HTMLElement).closest(ERROR_CONTAINER_SELECTOR)) {
+                continue;
+            }
+
+            if (mutation.addedNodes && mutation.addedNodes.length === 1 && (mutation.addedNodes[0] as HTMLElement).closest && (mutation.addedNodes[0] as HTMLElement).closest(ERROR_CONTAINER_SELECTOR)) {
                 continue;
             }
 
@@ -236,7 +251,16 @@ export function setup(
             _validatorQueue = {};
 
             toRemove.forEach(e => _error.remove(e));
-            toValidate.filter(e => win.document.contains(e)).map(validate);
+            const filtered = toValidate.filter(e => win.document.contains(e));
+            filtered.map(validate);
+            if (filtered.length > 0) {
+                externalValidators.map(v => {
+                    const errorsPromise = v.validate(filtered, win.document);
+                    errorsPromise.then(errors => errors.map(e => {
+                        error.report(e.element, { name: e.name, code: e.code, message: e.message });
+                    }));
+                });
+            }
         }, 100);
 
         function lookUp(node: Node): void {
@@ -261,6 +285,11 @@ export function setup(
             const element = node as HTMLElementWithValidatorId;
 
             if (element.getAttribute) {
+
+                if (element.closest(ERROR_CONTAINER_SELECTOR)) {
+                    return NodeFilter.FILTER_SKIP;
+                }
+
                 if (!element.__aaValidatorId) {
                     element.__aaValidatorId = 'aa-' + ++_lastValidatorId;
                 }
