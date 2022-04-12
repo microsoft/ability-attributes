@@ -86,7 +86,7 @@ jobs:
     displayName: Write npmrc for publish token
     inputs:
       script: |
-        echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}' >> .npmrc
+        npm set '//registry.npmjs.org/:_authToken=${NPM_TOKEN}'
 
   - task: CmdLine@2
     displayName: Publish (official)
