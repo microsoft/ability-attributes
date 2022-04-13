@@ -98,7 +98,7 @@ jobs:
     displayName: Publish (official)
     condition: eq(variables.prerelease, false)
     inputs:
-      script: npx lerna publish $(publishVersion) --yes --no-verify-access
+      script: npx lerna publish $(publishVersion) --force-publish --yes --no-verify-access
     env:
         NPM_TOKEN: $(npmToken)
 
@@ -106,6 +106,6 @@ jobs:
     displayName: Publish (prerelease)
     condition: eq(variables.prerelease, true)
     inputs:
-      script: npx lerna publish $(publishVersion) --canary --preid $(prereleaseTag) --dist-tag $(prereleaseTag) --yes --no-verify-access
+      script: npx lerna publish $(publishVersion) --canary --preid $(prereleaseTag) --dist-tag $(prereleaseTag) --force-publish --yes --no-verify-access
     env:
         NPM_TOKEN: $(npmToken)
