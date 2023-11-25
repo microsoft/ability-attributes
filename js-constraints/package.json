@@ -1,6 +1,6 @@
 {
   "name": "ability-attributes-js-constraints",
-  "version": "0.0.8",
+  "version": "0.9",
   "description": "A set of JavaScript constraints for the accessibility attributes schema runtime",
   "author": "Marat Abdullin <marata@microsoft.com>",
   "license": "MIT",

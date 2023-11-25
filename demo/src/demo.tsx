@@ -4,12 +4,32 @@
  */
 
 import { DevEnv, Schema } from 'ability-attributes';
+import * as Axe from 'axe-core';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 
 import { Button, Checkbox, PopupButton } from './schema';
 
-DevEnv.setup();
+const externalValidators: DevEnv.ExternalValidator[] = [
+    {
+        validate: async (elements: HTMLElement[], currentDocument: Document) => {
+            const axeResult = await Axe.run(elements as unknown as Axe.ContextObject, { reporter: 'v1' });
+            const errors: DevEnv.AbilityAttributesExtenralError[] = [];
+            axeResult.violations.map((v: Axe.Result) => 
+                v.nodes.map(node => {
+                    node.target.map(selector => {
+                        const element = currentDocument.querySelector(selector) as HTMLElement;
+                        if (element) {
+                            errors.push({ element, message: `[${v.impact}]: ${v.help}. ${v.description}`, name: v.id, code: 0 });
+                        }
+                    });
+                }));
+            return errors;
+        },
+    }
+];
+
+DevEnv.setup({ externalValidators });
 
 ReactDOM.render(
     <>

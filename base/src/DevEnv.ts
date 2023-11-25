@@ -50,7 +50,8 @@ export function setup(settings?: DevEnvSettings): void {
             w.__abilityAttributesDev.jsConstraints,
             enforceClasses,
             assumeClass,
-            ignoreUnknownClasses
+            ignoreUnknownClasses,
+            settings?.externalValidators || []
         );
 
         Object.keys(Constraints).forEach(name => {

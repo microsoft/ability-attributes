@@ -12,6 +12,7 @@ export const ATTRIBUTE_NAME_CLASS = 'data-aa-class';
 export const ATTRIBUTE_NAME_ERROR_ID = 'data-aa-error-id';
 export const ATTRIBUTE_NAME_ERROR_MESSAGE = 'data-aa-error-message';
 export const ATTRIBUTE_NAME_PROPS = 'data-aa-props';
+export const ERROR_CONTAINER_SELECTOR = '.aa-error-container';
 
 export abstract class AbilityAttributesError extends Error {
     abstract readonly code: number;
@@ -59,4 +60,13 @@ export interface DevEnvSettings {
     enforceClasses?: boolean;
     ignoreUnknownClasses?: boolean;
     window?: Window;
+    externalValidators?: ExternalValidator[];
+}
+
+export interface AbilityAttributesExtenralError extends AbilityAttributesError {
+    element: HTMLElement;
+}
+
+export interface ExternalValidator {
+    validate: (elements: HTMLElement[], currentDocument: Document) => Promise<AbilityAttributesExtenralError[]>;
 }
