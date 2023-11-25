@@ -1,0 +1,112 @@
+# Variable 'prerelease' was defined in the Variables tab
+# Variable 'prereleaseTag' was defined in the Variables tab
+# Variable 'publishVersion' was defined in the Variables tab
+
+variables:
+  - group: 'Github and NPM secrets'
+  - group: InfoSec-SecurityResults
+  - name: tags
+    value: production,externalfacing
+
+jobs:
+- job: Compliance
+  displayName: Compliance checks
+  pool:
+    name: uifabric-windows-2019-small
+  steps:
+  - checkout: self
+    clean: true
+
+  - task: UseDotNet@2
+    displayName: Use .NET Core sdk 3.x
+    inputs:
+      version: 3.x
+
+  - task: CredScan@3
+    displayName: Run Credential Scanner
+    inputs:
+      debugMode: false
+      folderSuppression: false
+
+  - task: ESLint@1
+    displayName: Run ESLint
+
+  - task: PublishSecurityAnalysisLogs@3
+    displayName: Publish Guardian Artifacts
+
+  - task: AssetRetention@3
+    displayName: ARtifact Retention Orchestrator Workflow (ARROW)
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+    inputs:
+      ArrowServiceConnection: dd6a5756-fb5f-4a28-98b6-a525d1421299
+      IsShipped: true
+
+  - task: PostAnalysis@2
+    displayName: Guardian Break
+
+- job: Release
+  displayName: Release
+  dependsOn: Compliance
+
+  pool:
+    name: 1ES-Host-Ubuntu
+
+  steps:
+  - checkout: self
+    clean: true
+
+  - task: CmdLine@2
+    displayName: Re-attach head
+    inputs:
+      script: |
+        git checkout --track "origin/${BUILD_SOURCEBRANCH//refs\/heads\/}"
+        git pull
+
+  - task: NodeTool@0
+    displayName: Use Node 16.x
+    inputs:
+      versionSpec: 16.x
+
+  - task: Npm@1
+    displayName: npm install
+    inputs:
+      verbose: false
+
+  - task: Npm@1
+    displayName: 'npm run bootstrap'
+    inputs:
+      command: custom
+      verbose: false
+      customCommand: 'run bootstrap'
+
+  - task: CmdLine@2
+    displayName: Authenticate git for pushes
+    inputs:
+      script: >-
+        git config user.name "Fluent UI Build"
+
+        git config user.email "fluentui-internal@service.microsoft.com"
+
+        git remote set-url origin https://$(githubUser):$(githubPAT)@github.com/microsoft/ability-attributes.git
+
+  - task: CmdLine@2
+    displayName: Write npmrc for publish token
+    inputs:
+      script: |
+        npm set '//registry.npmjs.org/:_authToken=${NPM_TOKEN}'
+
+  - task: CmdLine@2
+    displayName: Publish (official)
+    condition: eq(variables.prerelease, false)
+    inputs:
+      script: npx lerna publish $(publishVersion) --force-publish --yes --no-verify-access
+    env:
+        NPM_TOKEN: $(npmToken)
+
+  - task: CmdLine@2
+    displayName: Publish (prerelease)
+    condition: eq(variables.prerelease, true)
+    inputs:
+      script: npx lerna publish $(publishVersion) --canary --preid $(prereleaseTag) --dist-tag $(prereleaseTag) --force-publish --yes --no-verify-access
+    env:
+        NPM_TOKEN: $(npmToken)
